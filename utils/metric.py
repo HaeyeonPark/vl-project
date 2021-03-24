@@ -267,12 +267,13 @@ class Loss(nn.Module):
         labels_reshape = torch.reshape(labels, (batch_size, 1))
         labels_dist = labels_reshape - labels_reshape.t()
         labels_mask = (labels_dist == 0)
-        criterion = nn.CrossEntropyLoss()
 
         # normalize the true matching distribution
         labels_mask_norm = labels_mask.float() / labels_mask.float().norm(dim=1)
        
 
+        # S(I,T) = i2t_pred author said adding softmax function is beneficial for training. 
+        # it converges faster
         i2t_pred = F.softmax(i2t_similarites * self.args.lambda_softmax, dim=1)
         i2t_loss = i2t_pred * (F.log_softmax(i2t_similarites * self.args.lambda_softmax, dim=1) - torch.log(labels_mask_norm + self.epsilon))
         sim_cos = i2t_similarites
@@ -280,6 +281,7 @@ class Loss(nn.Module):
         pos_avg_sim = torch.mean(torch.masked_select(sim_cos, labels_mask))
         neg_avg_sim = torch.mean(torch.masked_select(sim_cos, labels_mask == 0))
 
+        # author said only use i2t similarities achieve higher performance
         # constrastive_loss = torch.mean(torch.sum(i2t_loss, dim=1)) + torch.mean(torch.sum(t2i_loss, dim=1))
         constrastive_loss = torch.mean(torch.sum(i2t_loss, dim=1))
 
