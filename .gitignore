@@ -2,3 +2,4 @@ logs/
 model_data/
 pretrained/
 data/
+__pycache__
