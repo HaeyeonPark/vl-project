@@ -1,3 +1,4 @@
+#!/bin/bash
 GPUS=0,1
 export CUDA_VISIBLE_DEVICES=$GPUS
 
@@ -12,7 +13,7 @@ FOCAL_TYPE=none
 
 lr=0.0011
 num_epoches=60
-batch_size=32
+batch_size=16
 lr_decay_ratio=0.9
 epoches_decay=20_30_40
 
@@ -38,8 +39,8 @@ python $BASE_ROOT/train.py \
     --focal_type $FOCAL_TYPE \
     --feature_size 768 \
     --lambda_cont 0.1 \
-    --part2 3 \
-    --part3 2 \
+    --part2 2 \
+    --part3 3 \
     --reranking
 
 

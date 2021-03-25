@@ -202,12 +202,32 @@ def process_decodedata(data, vocab):
 
 def process_dataset(split, decodedata, args, write=True):
     # Process dataset
+    data = decodedata_to_list(split, decodedata)
     
+    # min1 
     # Arrange by caption in a sorted form
-    dataset, label_range = create_dataset_sort(split, decodedata)
-
-    data = write_dataset(split, dataset, args, write=write)
+    #dataset = create_dataset_sort(split, decodedata)
+    #data = write_dataset(split, dataset, args, write=write)
     return data
+
+def decodedata_to_list(split, data):
+    captions_id = []
+    images_path = []
+    labels = []
+
+    for img in data: # for each ImageDecodeData
+        # we have 2 captions per image
+        #assert len(img.captions_id) ==2
+
+        captions_id.append(img.captions_id[:2])
+        labels.append(img.id)
+        images_path.append(img.image_path)
+
+    # captions_id = [ [ [t1],[t2] ], [ [t1],[t2] ], ... , ] 
+    # labels = [1,2,5,...]
+    # images_path = ['img/1.jpg','img/2.jpg', ... , ]
+    re_data = {'captions_id': captions_id, 'labels': labels, 'images_path': images_path}
+    return re_data
     
 
 def create_dataset_sort(split, data):
@@ -228,16 +248,18 @@ def create_dataset_sort(split, data):
     index = -1
     for label in images.keys():
         # all captions arrange together
-        images_sort.extend(images[label])
+        images_sort.extend(images[label]) # list filled with ImageDecodeData
         # label_range is arranged according to their actual index
         # label_range[label] = (previous, current]
+        '''no use 
         start = index
         for index_image in range(len(label_range[label])):
             label_range[label][index_image] += index
             index = label_range[label][index_image]
         label_range[label].append(start)
+        '''
 
-    return images_sort, label_range 
+    return images_sort#, label_range 
 
 
 def write_dataset(split, data, args, label_range=None, write=True):
@@ -249,7 +271,7 @@ def write_dataset(split, data, args, label_range=None, write=True):
     images_path = []
     labels = []
 
-    for img in data:
+    for img in data: # for each ImageDecodeData
         assert len(img.captions_id) == 1
         caption_id.append(img.captions_id[0])
         labels.append(img.id)
@@ -258,6 +280,7 @@ def write_dataset(split, data, args, label_range=None, write=True):
     #N = len(images)
     data = {'caption_id': caption_id, 'labels':labels, 'images_path':images_path}
     
+    '''nouse
     if write:
         if label_range is not None:
             data['label_range'] = label_range
@@ -268,6 +291,7 @@ def write_dataset(split, data, args, label_range=None, write=True):
         with open(pickle_root, 'wb') as f:
             pickle.dump(data, f)
         print('Save dataset') 
+    '''
 
     return data
     

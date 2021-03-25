@@ -19,7 +19,7 @@ def parse_args():
 
     # Model setting
     parser.add_argument('--resume', action='store_true', default=False, help='whether or not to restore the pretrained whole model')
-    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--num_epoches', type=int, default=60)
     parser.add_argument('--ckpt_steps', type=int, default=5000, help='#steps to save checkpoint')
     parser.add_argument('--feature_size', type=int, default=768)
@@ -32,8 +32,8 @@ def parse_args():
     parser.add_argument('--constraints_images', action='store_true')
     parser.add_argument('--num_classes', type=int, default=11003)
     parser.add_argument('--pretrained', action='store_true', default=True, help='whether or not to restore the pretrained visual model')
-    parser.add_argument('--part2', type=int, default=3) 
-    parser.add_argument('--part3', type=int, default=2)
+    parser.add_argument('--part2', type=int, default=2) 
+    parser.add_argument('--part3', type=int, default=3)
     parser.add_argument('--lambda_softmax', type=float, default=20.0, help='scale constant')
     parser.add_argument('--lambda_cont', type=float, default=0.1, help='hyper-parameter of contrastive loss')
     parser.add_argument('--reranking', action='store_true', default=True, help='whether reranking during testing')

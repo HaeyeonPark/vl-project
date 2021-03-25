@@ -65,7 +65,14 @@ class CuhkPedes(data.Dataset):
         assert len(caption) == len(data['images_path'])
         data['captions'] = caption
         return data
+    
+    def add_captions_to_data(self, split_data, data):
+        captions=[]
+        for el in split_data:
+            captions.append(el['captions'])
+        data['captions'] = captions
 
+        return data
     
     def get_data_from_json(self):
         args = Namespace(min_word_count=self.min_word_count, remove_stopwords = None, out_root=None)
@@ -85,7 +92,8 @@ class CuhkPedes(data.Dataset):
         data = preprocess.process_dataset(self.split, split_decodedata, args, write=False)
         
 
-        data = self.add_caption_to_data(split_data, data)
+        data = self.add_captions_to_data(split_data, data)
+        #data = self.add_caption_to_data(split_data, data)
         return data
 
     def load_split(self, split):   
