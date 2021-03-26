@@ -158,7 +158,7 @@ class CuhkPedes(data.Dataset):
         else:
             img_path, caption, label = self.test_images[index], self.test_captions[index], self.test_labels[index]
 
-
+        #image
         middle_path = "CUHK-PEDES/imgs"
         if middle_path not in img_path:
             img_path = os.path.join(self.image_root, middle_path, img_path)
@@ -177,8 +177,13 @@ class CuhkPedes(data.Dataset):
 
         if self.target_transform is not None:
             label = self.target_transform(label)
-
-        return img, caption, label                        
+        
+        # caption 
+        
+        if self.split == 'train':
+            return img, caption[:1], caption[1:], label
+        else:
+            return img, caption, label                        
 
     def __len__(self):
         if self.split == 'train':

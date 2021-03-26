@@ -44,11 +44,13 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
 
     end = time.time()
 
-    for step, (images, captions, labels) in enumerate(train_loader):
+    for step, (images, caption1, caption2, labels) in enumerate(train_loader):
+        ## now we have two captions per image
         sep_captions = []
         
         n_sep = 2
 
+        #['helllo', 'hwl,wl'] -> ['hello','sep','hwl','wl']
         for i, c in enumerate(captions):
             c = re.split(r'[;,!?.]', c)
             if len(c) > n_sep or len(c) == n_sep:
