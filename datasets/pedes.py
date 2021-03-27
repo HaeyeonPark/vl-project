@@ -181,7 +181,7 @@ class CuhkPedes(data.Dataset):
         # caption 
         
         if self.split == 'train':
-            return img, caption[:1], caption[1:], label
+            return img, caption, label
         else:
             return img, caption, label                        
 

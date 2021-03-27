@@ -44,15 +44,17 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
 
     end = time.time()
 
-    for step, (images, caption1, caption2, labels) in enumerate(train_loader):
+    for step, (images, caption, labels) in enumerate(train_loader):
         ## now we have two captions per image
+        captions = caption[0] + caption[1] 
         sep_captions = []
-        
+
         n_sep = 2
 
-        #['helllo', 'hwl,wl'] -> ['hello','sep','hwl','wl']
         for i, c in enumerate(captions):
-            c = re.split(r'[;,!?.]', c)
+            #c = re.split(r'[;,!?.]', c)
+            c = list(filter(None, re.split(r'[;,!?.]', c)))
+            # fix: only consider first two subsentence
             if len(c) > n_sep or len(c) == n_sep:
                 sep_captions = sep_captions + c[0:n_sep]
             else:
@@ -63,6 +65,8 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         tokens, segments, input_masks, caption_length = network.module.language_model.pre_process(captions)
         sep_tokens, sep_segments, sep_input_masks, sep_caption_length = network.module.language_model.pre_process(sep_captions)
 
+
+        ##
         tokens = tokens.cuda()
         segments = segments.cuda()
         input_masks = input_masks.cuda()
@@ -71,17 +75,20 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         sep_tokens = sep_tokens.cuda()
         sep_segments = sep_segments.cuda()
         sep_input_masks = sep_input_masks.cuda()
-        
+
         images = images.cuda()
         labels = labels.cuda()
 
+        
         p2 = [i for i in range(args.part2)]
         p3 = [i for i in range(args.part3)]
         random.shuffle(p2)
         random.shuffle(p3)
 
+        # network
         global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='train')
 
+        # loss
         cmpm_loss, cmpc_loss, cont_loss, loss, image_precision, text_precision, pos_avg_sim, neg_arg_sim, local_pos_avg_sim, local_neg_avg_sim = compute_loss(
             global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
 

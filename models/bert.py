@@ -30,9 +30,9 @@ class Bert(nn.Module):
 
         for j in range(len(tokens)):
             padding = [0] * (100 - len(tokens[j]))
-            text_length.append(len(tokens[j])+3)
+            text_length.append(len(tokens[j])+3) # why 3?
             tokens[j] += padding
-            segments[j] += padding
+            segments[j] += padding # why: what's for segments?
             input_masks[j] += padding
         
         tokens = torch.tensor(tokens)
