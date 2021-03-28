@@ -69,7 +69,7 @@ class Model(nn.Module):
 
     def forward(self, images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2=None, p3=None, object=None, attribute=None, stage=''):
 
-        # (batchsize*2) * 100 * 768 
+        # text_features: (batchsize*4) * 100 * 768 
         text_features = self.language_model(sep_tokens, sep_segments, sep_input_masks)
 
         # first token of subsentence
@@ -77,12 +77,16 @@ class Model(nn.Module):
         local_text_feat = local_text_feat.view(-1, n_sep, local_text_feat.size(1))
 
         b1, part_feature_list_b2, part_feature_list_b3 = self.image_model(images, p2, p3)
+        
+        # text_features: (batchsize*2) * 100 *  768
         text_features = self.language_model(tokens, segments, input_masks)
 
+        # shorten tensor and bn 
         global_img_feat, global_text_feat = self.build_joint_embeddings(b1, text_features[:, 0])
         global_img_feat = self.bottleneck_image(global_img_feat)
         global_text_feat = self.bottleneck_text(global_text_feat)
 
+        # catenate global + subsentence + word
         local_text_feat = torch.cat((global_text_feat.unsqueeze(1), local_text_feat, text_features[:, 1:99]), dim = 1)
         local_text_key = self.local_fc_text_key(local_text_feat)
         local_text_key = self.local_bottleneck_text_key(local_text_key)
@@ -115,6 +119,8 @@ class Model(nn.Module):
         local_img_query = torch.cat((global_img_query.unsqueeze(1), local_img_query), dim = 1)
         local_img_value = torch.cat((global_img_value.unsqueeze(1), local_img_value), dim = 1)
 
+        # local_img_*: concatenate b1 + b2 + b3 feature 
+        # local_text_*: concatenate sentence cls + subsentence cls + word feature
         return global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value
 
 

@@ -345,7 +345,8 @@ class Loss(nn.Module):
         # print("batch size: " + str(batch_size))
 
         labels_reshape = torch.reshape(labels, (batch_size, 1))
-        labels_dist = labels_reshape - labels_reshape.t()
+        labels_reshape_text = torch.cat((labels_reshape, labels_reshape), 0)
+        labels_dist = labels_reshape - labels_reshape_text.t()
         labels_mask = (labels_dist == 0)
 
         image_norm = image_embeddings / image_embeddings.norm(dim=1, keepdim=True)
@@ -354,15 +355,18 @@ class Loss(nn.Module):
         text_proj_image = torch.matmul(text_embeddings, image_norm.t())
 
         # normalize the true matching distribution
-        labels_mask_norm = labels_mask.float() / labels_mask.float().norm(dim=1)
+        #labels_mask_norm = labels_mask.float() / labels_mask.float().norm(dim=1)
+        labels_mask_t = labels_mask.t()
+        labels_mask_norm_i2t = (labels_mask_t.float() / labels_mask_t.float().norm(dim=0)).t()
+        labels_mask_norm_t2i = (labels_mask.float() / labels_mask.float().norm(dim=0)).t()
 
         i2t_pred = F.softmax(image_proj_text, dim=1)
         # i2t_loss = i2t_pred * torch.log((i2t_pred + self.epsilon)/ (labels_mask_norm + self.epsilon))
-        i2t_loss = i2t_pred * (F.log_softmax(image_proj_text, dim=1) - torch.log(labels_mask_norm + self.epsilon))
+        i2t_loss = i2t_pred * (F.log_softmax(image_proj_text, dim=1) - torch.log(labels_mask_norm_i2t + self.epsilon))
 
         t2i_pred = F.softmax(text_proj_image, dim=1)
         # t2i_loss = t2i_pred * torch.log((t2i_pred + self.epsilon)/ (labels_mask_norm + self.epsilon))
-        t2i_loss = t2i_pred * (F.log_softmax(text_proj_image, dim=1) - torch.log(labels_mask_norm + self.epsilon))
+        t2i_loss = t2i_pred * (F.log_softmax(text_proj_image, dim=1) - torch.log(labels_mask_norm_t2i + self.epsilon))
 
         cmpm_loss = torch.mean(torch.sum(i2t_loss, dim=1)) + torch.mean(torch.sum(t2i_loss, dim=1))
 

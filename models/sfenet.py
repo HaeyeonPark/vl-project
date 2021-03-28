@@ -127,19 +127,20 @@ class SfeNet(nn.Module):
         b1 = self.avgpool(b1)
 
         # branch 2
-        b2 = self.height_shuffle(x, p2)
-        b2 = self.branch2_layer3(b2)
+        # refactory: use adaptivepooling 
+        #b2 = self.height_shuffle(x, p2)
+        b2 = self.branch2_layer3(x)
         b2 = self.branch2_layer4(b2)
         # why recover shuffle??
-        b2 = self.recover_shuffle(b2, p2)
+        #b2 = self.recover_shuffle(b2, p2)
 
         index_pair_list_b2 = self.get_index_pair_list(b2, p2)
         part_feature_list_b2 = [self.avgpool(b2[:, :, pair[0]:pair[1], :]).squeeze() for pair in index_pair_list_b2]
 
         # branch 3
-        b3 = self.height_shuffle(b13, p3)
-        b3 = self.branch3_layer4(b3)
-        b3 = self.recover_shuffle(b3, p3)
+        #b3 = self.height_shuffle(b13, p3)
+        b3 = self.branch3_layer4(b13)
+        #b3 = self.recover_shuffle(b3, p3)
 
         index_pair_list_b3 = self.get_index_pair_list(b3, p3)
         part_feature_list_b3 = [self.avgpool(b3[:, :, pair[0]:pair[1], :]).squeeze() for pair in index_pair_list_b3]
