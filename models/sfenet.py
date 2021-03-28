@@ -130,6 +130,7 @@ class SfeNet(nn.Module):
         b2 = self.height_shuffle(x, p2)
         b2 = self.branch2_layer3(b2)
         b2 = self.branch2_layer4(b2)
+        # why recover shuffle??
         b2 = self.recover_shuffle(b2, p2)
 
         index_pair_list_b2 = self.get_index_pair_list(b2, p2)

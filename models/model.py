@@ -69,8 +69,10 @@ class Model(nn.Module):
 
     def forward(self, images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2=None, p3=None, object=None, attribute=None, stage=''):
 
+        # (batchsize*2) * 100 * 768 
         text_features = self.language_model(sep_tokens, sep_segments, sep_input_masks)
 
+        # first token of subsentence
         local_text_feat = text_features[:, 0, :]
         local_text_feat = local_text_feat.view(-1, n_sep, local_text_feat.size(1))
 
