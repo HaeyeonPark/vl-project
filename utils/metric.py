@@ -50,6 +50,7 @@ def func_attention_MxN(local_img_query, txt_i_key_expand, txt_i_value_expand, op
     context: (batch, sourceL, d)
     opt: parameters
     """
+    # 16, 6, 25
     batch_size, queryL, sourceL = txt_i_key_expand.size(
         0), local_img_query.size(1), txt_i_key_expand.size(1)
     local_img_query_norm = l2norm(local_img_query, dim=-1)
@@ -230,6 +231,7 @@ class Loss(nn.Module):
         for i in range(n_txt):
             # Get the i-th text description
             n_word = text_length[i]
+            # why? local text contains global then n_word+1 isn't it??
             txt_i_key = local_text_key[i, :n_word, :].unsqueeze(0).contiguous()
             txt_i_value = local_text_value[i, :n_word, :].unsqueeze(0).contiguous()
             # -> (n_img, n_word, d)
@@ -242,6 +244,8 @@ class Loss(nn.Module):
             #atten_final_result[i] = atten_text[i, :, :]
             # image_embeddings = l2norm(image_embeddings, dim=2)
             weiText = l2norm(weiText, dim=2)
+            i2t_similarities.append(weiText.unsqueeze(1))
+            '''
             i2t_sim = compute_similarity(local_img_value, weiText, dim=2)
             i2t_sim = i2t_sim.mean(dim=1, keepdim=True)
             i2t_similarities.append(i2t_sim)
@@ -253,14 +257,15 @@ class Loss(nn.Module):
             weiImage = l2norm(weiImage, dim=2)
             t2i_sim = compute_similarity(txt_i_value_expand, weiImage, dim=2)
             t2i_sim = t2i_sim.mean(dim=1, keepdim=True)
+            # images ~ text similarity 16*1 
             t2i_similarities.append(t2i_sim)
+            '''
 
-        # (n_img, n_txt)
-        #torch.save(atten_final_result, 'atten_final_result.pt')
+        # img * txt * part * dim 
         i2t_similarities = torch.cat(i2t_similarities, 1)
-        t2i_similarities = torch.cat(t2i_similarities, 1)
+        #t2i_similarities = torch.cat(t2i_similarities, 1)
 
-        return i2t_similarities, t2i_similarities
+        return i2t_similarities #, t2i_similarities
 
     def contrastive_loss(self, i2t_similarites, t2i_similarities, labels):
         batch_size = i2t_similarites.shape[0]
@@ -301,6 +306,11 @@ class Loss(nn.Module):
 
         image_norm = image_embeddings / image_embeddings.norm(dim=1, keepdim=True)
         text_norm = text_embeddings / text_embeddings.norm(dim=1, keepdim=True)
+
+        # two captions per image
+        image_embeddings = torch.cat((image_embeddings,image_embeddings), dim=0)
+        image_norm = torch.cat((image_norm, image_norm), dim=0)
+        labels = torch.cat((labels, labels), dim=0)
 
         image_proj_text = torch.sum(image_embeddings * text_norm, dim=1, keepdim=True) * text_norm
         text_proj_image = torch.sum(text_embeddings * image_norm, dim=1, keepdim=True) * image_norm
@@ -369,7 +379,7 @@ class Loss(nn.Module):
         t2i_loss = t2i_pred * (F.log_softmax(text_proj_image, dim=1) - torch.log(labels_mask_norm_t2i + self.epsilon))
 
         cmpm_loss = torch.mean(torch.sum(i2t_loss, dim=1)) + torch.mean(torch.sum(t2i_loss, dim=1))
-
+        # its for showing similarity between positive pairs and negative pairs
         sim_cos = torch.matmul(image_norm, text_norm.t())
 
         pos_avg_sim = torch.mean(torch.masked_select(sim_cos, labels_mask))
