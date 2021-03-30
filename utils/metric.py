@@ -198,22 +198,27 @@ class Loss(nn.Module):
         self.args = args
         self.CMPM = args.CMPM
         self.CMPC = args.CMPC
-        self.CONT = args.CONT
+        self.COMBINE = args.COMBINE
+        self.PART = args.PART
         self.epsilon = args.epsilon
         self.num_classes = args.num_classes
+        self.cb_layer = nn.Linear(args.feature_size*2, args.feature_size)
+        self.W = Parameter(torch.randn(args.feature_size, args.num_classes))
         if args.resume:
             checkpoint = torch.load(args.model_path)
-            self.W = Parameter(checkpoint['W'])
-            print('=========> Loading in parameter W from pretrained models')
+            self.W.copy_(checkpoint['W'])
+            self.cb_layer.weight.copy_(checkpoint['cb_layer.weight'])
+            self.cb_layer.bias.copy_(checkpoint['cb_layer.bias'])
+            print('=========> Loading in parameter W, combine layer from pretrained models')
         else:
-            self.W = Parameter(torch.randn(args.feature_size, args.num_classes))
             self.init_weight()
 
     def init_weight(self):
         nn.init.xavier_uniform_(self.W.data, gain=1)
+        nn.init.xavier_uniform_(self.cb_layer.weight, gain=1)
 
     @staticmethod
-    def compute_weiTexts(local_img_query, local_img_value, local_text_key, local_text_value, text_length, args):
+    def compute_weiTexts(local_img_query, local_text_key, local_text_value, text_length, args):
         """
         Compute weighted text embeddings
         :param image_embeddings: Tensor with dtype torch.float32, [n_img, n_region, d]
@@ -387,6 +392,49 @@ class Loss(nn.Module):
 
         return cmpm_loss, pos_avg_sim, neg_avg_sim
 
+    def compute_combineTexts(self, wei_text):
+        # compute part level combined texts
+        # 1> use one fc layer to combine two txt vectors
+        concat = []
+        n = wei_text.size(0)
+        for i in range(n):
+            concat.append(torch.cat((wei_text[i,i,:,:], wei_text[i,i+n,:,:]), dim=1))
+        combineTexts = torch.stack(concat, dim=0)
+        combineTexts = self.cb_layer(combineTexts)
+        return combineTexts
+
+    def compute_combine_loss(self, combineTexts, local_img_value, labels):
+        #to align combined texts to image
+        n = local_img_value.size(0)
+        i2t_sim=[]
+
+        labels_reshape = labels.unsqueeze(1)
+        labels_dist = labels_reshape - labels_reshape.t()
+        labels_mask = (labels_dist==0)
+        labels_mask_norm = labels_mask.float() / labels_mask.float().norm(dim=1)
+
+        for i in range(n):
+            # for each image  + all combined texts
+            img_i_expand = local_img_value[i,:,:].repeat(n,1,1)
+            sim = compute_similarity(img_i_expand, combineTexts, dim=2) 
+            sim = sim.mean(dim=1)
+            i2t_sim.append(sim)
+        i2t_sim = torch.stack(i2t_sim, dim=0) # n * 16(txt) 
+        i2t_pred = F.softmax(i2t_sim * self.args.lambda_softmax, dim=1)
+        combine_loss = i2t_pred * (torch.log(i2t_pred) - torch.log(labels_mask_norm + self.epsilon))
+        combine_loss = torch.mean(torch.sum(combine_loss, dim=1))
+
+        cb_pos_avg_sim = torch.mean(torch.masked_select(i2t_pred, labels_mask))
+        cb_neg_avg_sim = torch.mean(torch.masked_select(i2t_pred, labels_mask==0))
+
+        return combine_loss, cb_pos_avg_sim, cb_neg_avg_sim
+
+    def compute_part_loss(self, weiTexts, combineTexts, local_img_value):
+        # i2t + t2i
+        part_loss = 0
+        each_part_losses = 0
+        return part_loss, each_part_losses
+
     def forward(self, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, text_length,
                 labels):
         cmpm_loss = 0.0
@@ -396,22 +444,30 @@ class Loss(nn.Module):
         text_precision = 0.0
         neg_avg_sim = 0.0
         pos_avg_sim = 0.0
-        local_pos_avg_sim = 0.0
-        local_neg_avg_sim = 0.0
+        cb_pos_avg_sim = 0.0
+        cb_neg_avg_sim = 0.0
         if self.CMPM:
             cmpm_loss, pos_avg_sim, neg_avg_sim = self.compute_cmpm_loss(global_img_feat, global_text_feat,
                                                                          labels)
         if self.CMPC:
             cmpc_loss, image_precision, text_precision = self.compute_cmpc_loss(global_img_feat,
                                                                                 global_text_feat, labels)
-        if self.CONT:
-            i2t_sim, t2i_sim = self.compute_weiTexts(local_img_query, local_img_value, local_text_key, local_text_value, text_length, self.args)
-            cont_loss, local_pos_avg_sim, local_neg_avg_sim = self.contrastive_loss(i2t_sim, t2i_sim, labels)
-            cont_loss = cont_loss * self.args.lambda_cont
 
-        loss = cmpm_loss + cmpc_loss + cont_loss
+        weiTexts = self.compute_weiTexts(local_img_query, local_text_key, local_text_value, text_length, self.args)
+        combineTexts = self.compute_combineTexts(weiTexts)
+        if self.COMBINE:
+            # image based attended weighted vectors 16 * 32 * 6 * 768
+            combine_loss, cb_pos_avg_sim, cb_neg_avg_sim = self.compute_combine_loss(combineTexts, local_img_value, labels)
+        if self.PART:
+            # i2t + t2i
+            part_loss, each_part_losses = self.compute_part_loss(weiTexts, combineTexts, local_img_value)
 
-        return cmpm_loss.item(), cmpc_loss.item(), cont_loss.item(), loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, local_pos_avg_sim, local_neg_avg_sim
+            #cont_loss, local_pos_avg_sim, local_neg_avg_sim = self.contrastive_loss(i2t_sim, t2i_sim, labels)
+            part_loss = part_loss * self.args.lambda_cont
+
+        loss = cmpm_loss + cmpc_loss + combine_loss #+ part_loss
+
+        return cmpm_loss.item(), cmpc_loss.item(), combine_loss.item(), loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim
 
 
 class AverageMeter(object):

@@ -79,11 +79,11 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         images = images.cuda()
         labels = labels.cuda()
 
-        ## 
+        
         p2 = [i for i in range(args.part2)]
         p3 = [i for i in range(args.part3)]
-        #random.shuffle(p2)
-        #random.shuffle(p3)
+        random.shuffle(p2)
+        random.shuffle(p3)
 
         # network
         global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='train')
