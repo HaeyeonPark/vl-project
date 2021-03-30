@@ -82,19 +82,21 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         
         p2 = [i for i in range(args.part2)]
         p3 = [i for i in range(args.part3)]
-        random.shuffle(p2)
-        random.shuffle(p3)
+        #random.shuffle(p2)
+        #random.shuffle(p3)
 
         # network
         global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='train')
 
         # loss
-        cmpm_loss, cmpc_loss, cont_loss, loss, image_precision, text_precision, pos_avg_sim, neg_arg_sim, local_pos_avg_sim, local_neg_avg_sim = compute_loss(
+        #cmpm_loss, cmpc_loss, cont_loss, loss, image_precision, text_precision, pos_avg_sim, neg_arg_sim, local_pos_avg_sim, local_neg_avg_sim = compute_loss(
+        #    global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
+        cmpm_loss, cmpc_loss, combine_loss, loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim = compute_loss(
             global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
 
         if step % 10 == 0:
-            print('epoch:{}, step:{}, cmpm_loss:{:.3f}, cmpc_loss:{:.3f}, cont_loss:{:.3f}, pos_sim_avg:{:.3f}, neg_sim_avg:{:.3f}, lpos_sim_avg:{:.3f}, lneg_sim_avg:{:.3f}'.
-                  format(epoch, step, cmpm_loss, cmpc_loss, cont_loss, pos_avg_sim, neg_arg_sim, local_pos_avg_sim, local_neg_avg_sim))
+            print('epoch:{}, step:{}, cmpm_loss:{:.3f}, cmpc_loss:{:.3f}, combine_loss:{:.3f}, pos_sim_avg:{:.3f}, neg_sim_avg:{:.3f}, cb_pos_sim_avg:{:.3f}, cb_neg_sim_avg:{:.3f}'.
+                  format(epoch, step, cmpm_loss, cmpc_loss, combine_loss, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim))
         # constrain embedding with the same id at the end of one epoch
         if (args.constraints_images or args.constraints_text) and step == len(train_loader) - 1:
             con_images, con_text = constraints_loss(train_loader, network, args)
@@ -145,6 +147,7 @@ def main(args):
     # data
     train_loader = data_config(args.image_dir, args.anno_dir, args.batch_size, 'train', 100, train_transform, cap_transform=cap_transform)
 
+    # why test dataloader 64 no error??
     test_loader = data_config(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)
     unique_image = get_image_unique(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)  
     

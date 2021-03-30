@@ -25,7 +25,7 @@ def data_config(image_dir, anno_dir, batch_size, split, max_length, transform, v
         loader = data.DataLoader(data_split, batch_size, shuffle=shuffle, num_workers=4, drop_last=True)
     else:
         shuffle = False
-        loader = data.DataLoader(data_split, batch_size, shuffle=shuffle, num_workers=4, drop_last=False)    
+        loader = data.DataLoader(data_split, batch_size, shuffle=shuffle, num_workers=4, drop_last=True)    
     return loader
 
 def get_image_unique(image_dir, anno_dir, batch_size, split, max_length, transform):

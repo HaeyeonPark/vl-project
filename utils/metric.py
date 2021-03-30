@@ -218,6 +218,61 @@ class Loss(nn.Module):
         nn.init.xavier_uniform_(self.cb_layer.weight, gain=1)
 
     @staticmethod
+    def compute_i2t_sim(local_img_query, local_img_value, local_text_key, local_text_value, text_length, args):
+        """
+        Compute weighted text embeddings
+        :param image_embeddings: Tensor with dtype torch.float32, [n_img, n_region, d]
+        :param text_embeddings: Tensor with dtype torch.float32, [n_txt, n_word, d]
+        :param text_length: list, contain length of each sentence, [batch_size]
+        :param labels: Tensor with dtype torch.int32, [batch_size]
+        :return: i2t_similarities: Tensor, [n_img, n_txt]
+                 t2i_similarities: Tensor, [n_img, n_txt]
+        """
+        n_img = local_img_query.shape[0]
+        n_txt = local_text_key.shape[0]
+        t2i_similarities = []
+        i2t_similarities = []
+        #atten_final_result = {}
+        for i in range(n_txt):
+            # Get the i-th text description
+            n_word = text_length[i]
+            # why? local text contains global then n_word+1 isn't it??
+            txt_i_key = local_text_key[i, :n_word, :].unsqueeze(0).contiguous()
+            txt_i_value = local_text_value[i, :n_word, :].unsqueeze(0).contiguous()
+            # -> (n_img, n_word, d)
+            txt_i_key_expand = txt_i_key.repeat(n_img, 1, 1)
+            txt_i_value_expand = txt_i_value.repeat(n_img, 1, 1)
+
+            # -> (n_img, n_region, d)
+            #weiText, atten_text = func_attention_MxN(local_img_query, txt_i_key_expand, txt_i_value_expand, args)
+            weiText = func_attention_MxN(local_img_query, txt_i_key_expand, txt_i_value_expand, args)
+            #atten_final_result[i] = atten_text[i, :, :]
+            # image_embeddings = l2norm(image_embeddings, dim=2)
+            weiText = l2norm(weiText, dim=2)
+            i2t_sim = compute_similarity(local_img_value, weiText, dim=2)
+            i2t_sim = i2t_sim.mean(dim=1, keepdim=True)
+            i2t_similarities.append(i2t_sim)
+
+            '''
+            # -> (n_img, n_word, d)
+            #weiImage, atten_image = func_attention_MxN(txt_i_key_expand, local_img_query, local_img_value, args)
+            weiImage = func_attention_MxN(txt_i_key_expand, local_img_query, local_img_value, args)
+            # txt_i_expand = l2norm(txt_i_expand, dim=2)
+            weiImage = l2norm(weiImage, dim=2)
+            t2i_sim = compute_similarity(txt_i_value_expand, weiImage, dim=2)
+            t2i_sim = t2i_sim.mean(dim=1, keepdim=True)
+            # images ~ text similarity 16*1 
+            t2i_similarities.append(t2i_sim)
+            '''
+
+        # img * txt * part * dim 
+        i2t_similarities = torch.cat(i2t_similarities, 1)
+        #t2i_similarities = torch.cat(t2i_similarities, 1)
+
+        return i2t_similarities #, t2i_similarities
+
+
+    @staticmethod
     def compute_weiTexts(local_img_query, local_text_key, local_text_value, text_length, args):
         """
         Compute weighted text embeddings
@@ -466,7 +521,7 @@ class Loss(nn.Module):
             #cont_loss, local_pos_avg_sim, local_neg_avg_sim = self.contrastive_loss(i2t_sim, t2i_sim, labels)
             part_loss = part_loss * self.args.lambda_cont
 
-        loss = cmpm_loss + cmpc_loss + combine_loss #+ part_loss
+        loss = cmpm_loss + cmpc_loss + combine_loss* self.args.lambda_cont#+ part_loss
 
         return cmpm_loss.item(), cmpc_loss.item(), combine_loss.item(), loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim
 
@@ -506,9 +561,8 @@ def compute_topk(query_global, query, value_bank, gallery_global, gallery_key, g
 
     
     for i in range(0, query.shape[0], 200):
-        i2t_sim, t2i_sim = Loss.compute_weiTexts(query[i:i + 200], value_bank[i:i + 200], gallery_key, gallery_value, gallery_length, args)
-        sim = i2t_sim
-        sim_cosine.append(sim)
+        i2t_sim = Loss.compute_i2t_sim(query[i:i + 200], value_bank[i:i + 200], gallery_key, gallery_value, gallery_length, args)
+        sim_cosine.append(i2t_sim)
 
     sim_cosine = torch.cat(sim_cosine, dim=0)
     
@@ -525,7 +579,9 @@ def compute_topk(query_global, query, value_bank, gallery_global, gallery_key, g
     if reverse:
         local_result.extend(topk(sim_cosine, target_query, target_gallery, k=k_list, dim=0, print_index=False))
 
+    # i2t
     result.extend(topk(sim_cosine_all, target_gallery, target_query, k=k_list, reid_sim=reid_sim))
+    # t2i
     if reverse:
         result.extend(topk(sim_cosine_all, target_query, target_gallery, k=k_list, dim=0, print_index=False, reid_sim=reid_sim))
     return global_result, local_result, result

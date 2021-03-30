@@ -132,6 +132,8 @@ class Model(nn.Module):
         image_embeddings = self.conv_images(images_features).squeeze()
         text_embeddings = self.conv_text(text_features).squeeze()
 
+
+
         return image_embeddings, text_embeddings
 
 
