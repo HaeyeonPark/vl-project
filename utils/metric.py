@@ -401,6 +401,7 @@ class Loss(nn.Module):
             concat.append(torch.cat((wei_text[i,i,:,:], wei_text[i,i+n,:,:]), dim=1))
         combineTexts = torch.stack(concat, dim=0)
         combineTexts = self.cb_layer(combineTexts)
+        combineTexts = l2norm(combineTexts, dim=2)
         return combineTexts
 
     def compute_combine_loss(self, combineTexts, local_img_value, labels):
