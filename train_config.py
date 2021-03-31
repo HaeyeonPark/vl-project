@@ -22,10 +22,10 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--num_epoches', type=int, default=60)
     parser.add_argument('--ckpt_steps', type=int, default=5000, help='#steps to save checkpoint')
-    parser.add_argument('--feature_size', type=int, default=768)
+    parser.add_argument('--feature_size', type=int, default=768) # 768
     parser.add_argument('--CMPM', action='store_true',default=True)
     parser.add_argument('--CMPC', action='store_true', default=True)
-    parser.add_argument('--CONT', action='store_true',default=True)
+    parser.add_argument('--CONT', action='store_true',default=False)
     parser.add_argument('--COMBINE', action='store_true',default=True)
     parser.add_argument('--PART', action='store_true',default=False)
     parser.add_argument('--focal_type', type=str, default='none')

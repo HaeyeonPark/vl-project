@@ -17,9 +17,9 @@ logger.setLevel(logging.INFO)
 def l2norm(X, dim, eps=1e-8):
     """L2-normalize columns of X
     """
-    norm = torch.pow(X, 2).sum(dim=dim, keepdim=True).sqrt() + eps
-    X = torch.div(X, norm)
-    return X
+    #norm = torch.pow(X, 2).sum(dim=dim, keepdim=True).sqrt() + eps
+    #X = torch.div(X, norm)
+    return F.normalize(X, dim=dim, p=2)
 
 
 def compute_similarity(x1, x2, dim=1, eps=1e-8):
@@ -51,6 +51,7 @@ def func_attention_MxN(local_img_query, txt_i_key_expand, txt_i_value_expand, op
     opt: parameters
     """
     # 16, 6, 25
+    print(torch.cuda.max_memory_allocated(0))
     batch_size, queryL, sourceL = txt_i_key_expand.size(
         0), local_img_query.size(1), txt_i_key_expand.size(1)
     local_img_query_norm = l2norm(local_img_query, dim=-1)
@@ -264,6 +265,8 @@ class Loss(nn.Module):
             # images ~ text similarity 16*1 
             t2i_similarities.append(t2i_sim)
             '''
+            del txt_i_key_expand
+            del txt_i_value_expand
 
         # img * txt * part * dim 
         i2t_similarities = torch.cat(i2t_similarities, 1)
@@ -295,8 +298,10 @@ class Loss(nn.Module):
             txt_i_key = local_text_key[i, :n_word, :].unsqueeze(0).contiguous()
             txt_i_value = local_text_value[i, :n_word, :].unsqueeze(0).contiguous()
             # -> (n_img, n_word, d)
-            txt_i_key_expand = txt_i_key.repeat(n_img, 1, 1)
-            txt_i_value_expand = txt_i_value.repeat(n_img, 1, 1)
+            #txt_i_key_expand = txt_i_key.repeat(n_img, 1, 1)
+            #txt_i_value_expand = txt_i_value.repeat(n_img, 1, 1)
+            txt_i_key_expand = txt_i_key.expand(n_img, n_word, args.feature_size)
+            txt_i_value_expand = txt_i_value.expand(n_img, n_word, args.feature_size)
 
             # -> (n_img, n_region, d)
             #weiText, atten_text = func_attention_MxN(local_img_query, txt_i_key_expand, txt_i_value_expand, args)
@@ -320,6 +325,8 @@ class Loss(nn.Module):
             # images ~ text similarity 16*1 
             t2i_similarities.append(t2i_sim)
             '''
+            del txt_i_key_expand
+            del txt_i_value_expand
 
         # img * txt * part * dim 
         i2t_similarities = torch.cat(i2t_similarities, 1)

@@ -182,7 +182,7 @@ def main(args):
         if epoch >= 0:
             ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
         
-            state = {'network': network.state_dict(), 'optimizer': optimizer.state_dict(), 'W': compute_loss.W, 'epoch': args.start_epoch + epoch}
+            state = {'network': network.state_dict(), 'optimizer': optimizer.state_dict(), 'W': compute_loss.W, 'epoch': args.start_epoch + epoch, 'cb_layer.weight': compute_loss.cb_layer.weight, 'cb_layer.bias': compute_loss.cb_layer.bias}
            
             if ac_top1_t2i > ac_t2i_top1_best:
                 best_epoch = epoch
