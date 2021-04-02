@@ -2,4 +2,7 @@ logs/
 model_data/
 pretrained/
 data/
+data
 __pycache__
+*.pyc
+scripts/train.sh
