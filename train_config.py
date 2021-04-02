@@ -63,6 +63,7 @@ def parse_args():
 
 
 def config():
+    print('##################################### train config #############################################')
     args = parse_args()
     dir_config(args)
     log_config(args,'train')
