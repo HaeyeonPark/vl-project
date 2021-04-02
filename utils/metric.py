@@ -51,7 +51,6 @@ def func_attention_MxN(local_img_query, txt_i_key_expand, txt_i_value_expand, op
     opt: parameters
     """
     # 16, 6, 25
-    print(torch.cuda.max_memory_allocated(0))
     batch_size, queryL, sourceL = txt_i_key_expand.size(
         0), local_img_query.size(1), txt_i_key_expand.size(1)
     local_img_query_norm = l2norm(local_img_query, dim=-1)
@@ -298,10 +297,10 @@ class Loss(nn.Module):
             txt_i_key = local_text_key[i, :n_word, :].unsqueeze(0).contiguous()
             txt_i_value = local_text_value[i, :n_word, :].unsqueeze(0).contiguous()
             # -> (n_img, n_word, d)
-            #txt_i_key_expand = txt_i_key.repeat(n_img, 1, 1)
-            #txt_i_value_expand = txt_i_value.repeat(n_img, 1, 1)
-            txt_i_key_expand = txt_i_key.expand(n_img, n_word, args.feature_size)
-            txt_i_value_expand = txt_i_value.expand(n_img, n_word, args.feature_size)
+            txt_i_key_expand = txt_i_key.repeat(n_img, 1, 1)
+            txt_i_value_expand = txt_i_value.repeat(n_img, 1, 1)
+            #txt_i_key_expand = txt_i_key.expand(n_img, n_word, args.feature_size)
+            #txt_i_value_expand = txt_i_value.expand(n_img, n_word, args.feature_size)
 
             # -> (n_img, n_region, d)
             #weiText, atten_text = func_attention_MxN(local_img_query, txt_i_key_expand, txt_i_value_expand, args)
