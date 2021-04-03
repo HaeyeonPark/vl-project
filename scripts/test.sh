@@ -1,24 +1,24 @@
-GPUS=
+GPUS=0,1,2,3
 export CUDA_VISIBLE_DEVICES=$GPUS
 
-IMAGE_DIR=
-BASE_ROOT=
+IMAGE_DIR=/workspace/data
+BASE_ROOT=/workspace/code
 ANNO_DIR=$BASE_ROOT/data/processed_data
 
-CKPT_DIR=$BASE_ROOT/data/model_data
-LOG_DIR=$BASE_ROOT/data/logs
+CKPT_DIR=$BASE_ROOT/data/model_data/exp5 ## dir to exp 
+LOG_DIR=$BASE_ROOT/data/logs/exp5
 PRETRAINED_PATH=$BASE_ROOT/pretrained/resnet50-19c8e357.pth
 FOCAL_TYPE=none
 
 lr=0.0011
 num_epoches=60
-batch_size=64
+batch_size=16
 lr_decay_ratio=0.9
 epoches_decay=20_30_40
 
 python ${BASE_ROOT}/test.py \
-    --model_path $CKPT_DIR/lr-$lr-decay-$lr_decay_ratio-batch-$batch_size \
-    --log_dir $LOG_DIR/lr-$lr-decay-$lr_decay_ratio-batch-$batch_size \
+    --model_path $CKPT_DIR \
+    --log_dir $LOG_DIR \
     --image_dir $IMAGE_DIR \
     --anno_dir $ANNO_DIR \
     --gpus $GPUS \

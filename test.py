@@ -12,6 +12,7 @@ from config import data_config, network_config, get_image_unique
 import numpy as np
 import math
 import re
+import glob
 
 def test(data_loader, network, args, unique_image):
     batch_time = AverageMeter()
@@ -109,6 +110,7 @@ def test(data_loader, network, args, unique_image):
         return ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, batch_time.avg
 
 
+
 def main(args):
     # need to clear the pipeline
     # top1 & top10 need to be chosen in the same params ???
@@ -119,17 +121,25 @@ def main(args):
         normalize
     ])
 
-    test_loader = data_config(args.image_dir, args.anno_dir, 32, 'test', 100, test_transform)
+    test_loader = data_config(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)
     unique_image = get_image_unique(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)
+
+    
+    
+    
+
+    # from /exp# dir get best_model.pth.tar
+    for filename in glob.iglob(args.model_path + '/**/best_model.pth.tar', recursive=True):
+        model_path = filename
+    logging.info(model_path)
+    network, _ = network_config(args, 'test', param=None, resume=False, model_path=model_path, param2=None)
+    ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
+    logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
+            ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
+
 
 
     '''
-    ac_i2t_top1_best = 0.0
-    ac_i2t_top10_best = 0.0
-    ac_t2i_top1_best = 0.0
-    ac_t2i_top10_best = 0.0
-    ac_t2i_top5_best = 0.0
-    ac_i2t_top5_best = 0.0
     i2t_models = os.listdir(args.model_path)
     i2t_models.sort()
     model_list = []
@@ -137,7 +147,10 @@ def main(args):
         if i2t_model.split('.')[0] != "model_best":
             model_list.append(int(i2t_model.split('.')[0]))
         model_list.sort()
-   ''' 
+    '''
+   
+    ''' for debug
+    
     logging.info('Testing on dataset: {}'.format(args.anno_dir))
     network, _ = network_config(args, 'test')
 
@@ -146,6 +159,13 @@ def main(args):
             ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
     
     '''
+    '''
+    ac_i2t_top1_best = 0.0
+    ac_i2t_top10_best = 0.0
+    ac_t2i_top1_best = 0.0
+    ac_t2i_top10_best = 0.0
+    ac_t2i_top5_best = 0.0
+    ac_i2t_top5_best = 0.0
     for i2t_model in model_list:
         model_file = os.path.join(args.model_path, str(i2t_model) + '.pth.tar')
         if os.path.isdir(model_file):

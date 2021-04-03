@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from utils.metric import AverageMeter, Loss, constraints_loss
 from test import test
 from config import data_config, network_config, lr_scheduler, get_image_unique
-from train_config import config
+from debug_config import config
 from tqdm import tqdm
 import sys
 from solver import WarmupMultiStepLR, RandomErasing
@@ -26,10 +26,11 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 def save_checkpoint(state, epoch, dst, is_best):
-    filename = os.path.join(dst, 'model_latest') + '.pth.tar'
+    filename = os.path.join(dst, 'latest_model') + '.pth.tar'
     torch.save(state, filename)
     if is_best:
-        dst_best = os.path.join(dst, 'model_best', str(epoch)) + '.pth.tar'
+        #dst_best = os.path.join(dst, 'best_model', str(epoch)) + '.pth.tar'
+        dst_best = os.path.join(dst, 'best_model') + '.pth.tar'
         shutil.copyfile(filename, dst_best)
 
 
@@ -176,6 +177,7 @@ def main(args):
         logging.info('Epoch:  [{}|{}], train_time: {:.3f}, train_loss: {:.3f}'.format(args.start_epoch + epoch, args.num_epoches, train_time, train_loss))
         logging.info('image_precision: {:.3f}, text_precision: {:.3f}'.format(image_precision, text_precision))
         scheduler.step()
+        
         for param in optimizer.param_groups:
             print('lr:{}'.format(param['lr']))
 

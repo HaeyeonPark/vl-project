@@ -38,7 +38,7 @@ def network_config(args, split='train', param=None, resume=False, model_path=Non
     args.start_epoch = 0
 
     # process network params
-    if resume:
+    if resume or split == 'test':
         directory.check_file(model_path, 'model_file')
         checkpoint = torch.load(model_path)
         args.start_epoch = checkpoint['epoch'] + 1
