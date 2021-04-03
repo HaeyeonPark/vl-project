@@ -26,7 +26,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 def save_checkpoint(state, epoch, dst, is_best):
-    filename = os.path.join(dst, 'best_model') + '.pth.tar'
+    filename = os.path.join(dst, 'model_latest') + '.pth.tar'
     torch.save(state, filename)
     if is_best:
         dst_best = os.path.join(dst, 'model_best', str(epoch)) + '.pth.tar'
@@ -183,11 +183,15 @@ def main(args):
             ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
         
             state = {'network': network.state_dict(), 'optimizer': optimizer.state_dict(), 'W': compute_loss.W, 'epoch': args.start_epoch + epoch, 'cb_layer.weight': compute_loss.cb_layer.weight, 'cb_layer.bias': compute_loss.cb_layer.bias}
-           
+            
             if ac_top1_t2i > ac_t2i_top1_best:
                 best_epoch = epoch
                 ac_t2i_top1_best = ac_top1_t2i
+                is_best=True
                 save_checkpoint(state, epoch, args.checkpoint_dir, is_best)
+            else:
+                if epoch %10 ==0:
+                    save_checkpoint(state, epoch, args.checkpoint_dir, is_best)
             
             logging.info('epoch:{}'.format(epoch))
             logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
