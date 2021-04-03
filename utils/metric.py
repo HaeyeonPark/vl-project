@@ -486,8 +486,8 @@ class Loss(nn.Module):
         combine_loss = i2t_pred * (torch.log(i2t_pred) - torch.log(labels_mask_norm + self.epsilon))
         combine_loss = torch.mean(torch.sum(combine_loss, dim=1))
 
-        cb_pos_avg_sim = torch.mean(torch.masked_select(i2t_pred, labels_mask))
-        cb_neg_avg_sim = torch.mean(torch.masked_select(i2t_pred, labels_mask==0))
+        cb_pos_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask))
+        cb_neg_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask==0))
 
         return combine_loss, cb_pos_avg_sim, cb_neg_avg_sim
 
