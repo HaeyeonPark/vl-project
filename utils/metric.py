@@ -433,8 +433,8 @@ class Loss(nn.Module):
         # normalize the true matching distribution
         #labels_mask_norm = labels_mask.float() / labels_mask.float().norm(dim=1)
         labels_mask_t = labels_mask.t()
-        labels_mask_norm_i2t = (labels_mask_t.float() / labels_mask_t.float().norm(dim=0)).t()
-        labels_mask_norm_t2i = (labels_mask.float() / labels_mask.float().norm(dim=0)).t()
+        labels_mask_norm_i2t = (labels_mask_t.float() / labels_mask_t.float().norm(dim=0,p=1)).t()
+        labels_mask_norm_t2i = (labels_mask.float() / labels_mask.float().norm(dim=0,p=1)).t()
 
         i2t_pred = F.softmax(image_proj_text, dim=1)
         # i2t_loss = i2t_pred * torch.log((i2t_pred + self.epsilon)/ (labels_mask_norm + self.epsilon))
