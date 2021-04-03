@@ -21,7 +21,8 @@ class Bert(nn.Module):
             tokenized_text = self.tokenizer.tokenize(text)
             indexed_tokens = self.tokenizer.convert_tokens_to_ids(tokenized_text)
             if len(indexed_tokens) > 100:
-                indexed_tokens = indexed_tokens[:100]
+                #indexed_tokens = indexed_tokens[:100]
+                indexed_tokens = indexed_tokens[:99] + [indexed_tokens[-1]]
                 
             tokens.append(indexed_tokens)
             segments.append([0] * len(indexed_tokens))
@@ -30,7 +31,7 @@ class Bert(nn.Module):
 
         for j in range(len(tokens)):
             padding = [0] * (100 - len(tokens[j]))
-            text_length.append(len(tokens[j])+3) # why 3?
+            text_length.append(len(tokens[j])+1) # why 3? solved-> 1 
             tokens[j] += padding
             segments[j] += padding # why: what's for segments?
             input_masks[j] += padding
