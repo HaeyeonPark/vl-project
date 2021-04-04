@@ -11,10 +11,10 @@ PRETRAINED_PATH=$BASE_ROOT/pretrained/resnet50-19c8e357.pth
 FOCAL_TYPE=none
 
 lr=0.0011
-num_epoches=60
+num_epochs=60
 batch_size=16
 lr_decay_ratio=0.9
-epoches_decay=20_30_40
+epochs_decay=20_30_40
 
 python ${BASE_ROOT}/test.py \
     --model_path $CKPT_DIR \

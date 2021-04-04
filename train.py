@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from utils.metric import AverageMeter, Loss, constraints_loss
 from test import test
 from config import data_config, network_config, lr_scheduler, get_image_unique
-from debug_config import config
+from train_config import config
 from tqdm import tqdm
 import sys
 from solver import WarmupMultiStepLR, RandomErasing
@@ -92,12 +92,15 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         # loss
         #cmpm_loss, cmpc_loss, cont_loss, loss, image_precision, text_precision, pos_avg_sim, neg_arg_sim, local_pos_avg_sim, local_neg_avg_sim = compute_loss(
         #    global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
-        cmpm_loss, cmpc_loss, combine_loss, loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim = compute_loss(
-            global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
+        cmpm_loss, cmpc_loss, combine_loss, part_loss, loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim, part_i2t, part_t2i = compute_loss(
+            args.num_epochs, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
 
         if step % 10 == 0:
-            print('epoch:{}, step:{}, cmpm_loss:{:.3f}, cmpc_loss:{:.3f}, combine_loss:{:.3f}, pos_sim_avg:{:.3f}, neg_sim_avg:{:.3f}, cb_pos_sim_avg:{:.3f}, cb_neg_sim_avg:{:.3f}'.
-                  format(epoch, step, cmpm_loss, cmpc_loss, combine_loss, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim))
+            print('epoch:{}, step:{}, cmpm_loss:{:.3f}, cmpc_loss:{:.3f}, combine_loss:{:.3f}, part_loss:{:.3f}, pos_sim_avg:{:.3f}, neg_sim_avg:{:.3f}, cb_pos_sim_avg:{:.3f}, cb_neg_sim_avg:{:.3f}'.
+                  format(epoch, step, cmpm_loss, cmpc_loss, combine_loss, part_loss, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim))
+            print('part_i2t', part_i2t)
+            print('part_t2i', part_t2i)
+
         # constrain embedding with the same id at the end of one epoch
         if (args.constraints_images or args.constraints_text) and step == len(train_loader) - 1:
             con_images, con_text = constraints_loss(train_loader, network, args)
@@ -165,7 +168,7 @@ def main(args):
     
     ac_t2i_top1_best = 0.0
     best_epoch = 0
-    for epoch in range(args.num_epoches - args.start_epoch):
+    for epoch in range(args.num_epochs - args.start_epoch):
         network.train()
         # train for one epoch
         train_loss, train_time, image_precision, text_precision = train(args.start_epoch + epoch, train_loader, network, optimizer, compute_loss, args)
@@ -174,7 +177,7 @@ def main(args):
         is_best = False
         print('Train done for epoch-{}'.format(args.start_epoch + epoch))
 
-        logging.info('Epoch:  [{}|{}], train_time: {:.3f}, train_loss: {:.3f}'.format(args.start_epoch + epoch, args.num_epoches, train_time, train_loss))
+        logging.info('Epoch:  [{}|{}], train_time: {:.3f}, train_loss: {:.3f}'.format(args.start_epoch + epoch, args.num_epochs, train_time, train_loss))
         logging.info('image_precision: {:.3f}, text_precision: {:.3f}'.format(image_precision, text_precision))
         scheduler.step()
         

@@ -128,10 +128,10 @@ def dir_config(args):
 
 
 def lr_scheduler(optimizer, args):
-    if '_' in args.epoches_decay:
-        epoches_list = args.epoches_decay.split('_')
-        epoches_list = [int(e) for e in epoches_list]
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, epoches_list)
+    if '_' in args.epochs_decay:
+        epochs_list = args.epochs_decay.split('_')
+        epochs_list = [int(e) for e in epochs_list]
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, epochs_list)
     else:
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, int(args.epoches_decay))
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, int(args.epochs_decay))
     return scheduler

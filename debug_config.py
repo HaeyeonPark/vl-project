@@ -20,14 +20,14 @@ def parse_args():
     # Model setting
     parser.add_argument('--resume', action='store_true', default=False, help='whether or not to restore the pretrained whole model')
     parser.add_argument('--batch_size', type=int, default=16)
-    parser.add_argument('--num_epoches', type=int, default=60)
+    parser.add_argument('--num_epochs', type=int, default=60)
     parser.add_argument('--ckpt_steps', type=int, default=5000, help='#steps to save checkpoint')
     parser.add_argument('--feature_size', type=int, default=768) # 768
     parser.add_argument('--CMPM', action='store_true',default=True)
     parser.add_argument('--CMPC', action='store_true', default=True)
     parser.add_argument('--CONT', action='store_true',default=False)
     parser.add_argument('--COMBINE', action='store_true',default=True)
-    parser.add_argument('--PART', action='store_true',default=False)
+    parser.add_argument('--PART', action='store_true',default=True)
     parser.add_argument('--focal_type', type=str, default='none')
     parser.add_argument('--cnn_dropout_keep', type=float, default=0.999)
     parser.add_argument('--constraints_text', action='store_true')
@@ -50,7 +50,7 @@ def parse_args():
     parser.add_argument('--end_lr', type=float, default=0.0001, help='minimum end learning rate used by a polynomial decay learning rate')
     parser.add_argument('--lr_decay_type', type=str, default='exponential', help='One of "fixed" or "exponential"')
     parser.add_argument('--lr_decay_ratio', type=float, default=0.9)
-    parser.add_argument('--epoches_decay', type=str, default='20_30_40', help='#epoches when learning rate decays')
+    parser.add_argument('--epochs_decay', type=str, default='20_30_40', help='#epochs when learning rate decays')
 
     parser.add_argument('--nsave', type=str, default='')
 
