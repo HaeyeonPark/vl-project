@@ -467,8 +467,26 @@ class Loss(nn.Module):
         #combineTexts = l2norm(combineTexts, dim=2)
         return combineTexts
 
-    def compute_combine_loss(self, combineTexts, local_img_value, labels):
+    def compute_combine_loss(self, combineTexts, local_img_value, labels, lambda_cb, epsilon):
         #to align combined texts to image
+        # matrix ver + not add partwise
+        labels_reshape = labels.unsqueeze(1)
+        labels_dist = labels_reshape - labels_reshape.t()
+        labels_mask = (labels_dist == 0)
+        labels_mask = labels_mask.repeat(combineTexts.size(1),1,1).float()
+
+        local_img_value_norm = l2norm(local_img_value, dim=-1)
+        local_img_value_T = local_img_value_norm.transpose(0,1)
+
+        combineTexts_norm = l2norm(combineTexts, dim=-1)
+        combinedTexts_T = combineTexts_norm.permute(1,2,0)
+
+        sim = torch.bmm(local_img_value_T, combinedTexts_T)
+        pred = F.softmax(sim * lambda_cb, dim=2)
+
+        combine_loss = pred * (torch.log(pred) - torch.log(labels_mask + epsilon))
+        combine_loss = torch.sum(combine_loss, dim=2).mean()
+        """
         n = local_img_value.size(0)
         i2t_sim=[]
 
@@ -490,8 +508,8 @@ class Loss(nn.Module):
 
         cb_pos_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask))
         cb_neg_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask==0))
-
-        return combine_loss, cb_pos_avg_sim, cb_neg_avg_sim
+        """
+        return combine_loss #, cb_pos_avg_sim, cb_neg_avg_sim
 
     def compute_part_loss(self, weiTexts, combineTexts, local_img_value):
         # i2t
@@ -529,7 +547,7 @@ class Loss(nn.Module):
 
         each_part_t2i_loss = torch.mean(part_t2i_loss, dim=0) # each part
         part_t2i_loss = torch.mean(part_t2i_loss)
-
+        
         #
         part_loss = part_i2t_loss + part_t2i_loss
         return part_loss, each_part_i2t_loss, each_part_t2i_loss
@@ -545,30 +563,35 @@ class Loss(nn.Module):
         pos_avg_sim = 0.0
         cb_pos_avg_sim = 0.0
         cb_neg_avg_sim = 0.0
+        loss = 0
         if self.CMPM:
             cmpm_loss, pos_avg_sim, neg_avg_sim = self.compute_cmpm_loss(global_img_feat, global_text_feat,
                                                                          labels)
+            loss += cmpm_loss
         if self.CMPC:
             cmpc_loss, image_precision, text_precision = self.compute_cmpc_loss(global_img_feat,
                                                                                 global_text_feat, labels)
+            loss += cmpc_loss
 
         weiTexts = self.compute_weiTexts(local_img_query, local_text_key, local_text_value, text_length, self.args)
         combineTexts = self.compute_combineTexts(weiTexts)
         if self.COMBINE:
             # image based attended weighted vectors 16 * 32 * 6 * 768
-            combine_loss, cb_pos_avg_sim, cb_neg_avg_sim = self.compute_combine_loss(combineTexts, local_img_value, labels)
+            combine_loss = self.compute_combine_loss(combineTexts, local_img_value, labels, self.args.lambda_softmax, self.args.epsilon)
             combine_loss = combine_loss * self.args.lambda_cont
+            loss += combine_loss
         if self.PART:
             # i2t + t2i
             part_loss, each_part_i2t, each_part_t2i = self.compute_part_loss(weiTexts, combineTexts, local_img_value)
 
             beta = epoch / total_epoch
             part_loss = part_loss * self.args.lambda_cont * min(1, exp(beta)+ beta -1)
-        #cont_loss, local_pos_avg_sim, local_neg_avg_sim = self.contrastive_loss(i2t_sim, t2i_sim, labels)
+            loss += part_loss
+        if self.CONT:
+            #cont_loss, local_pos_avg_sim, local_neg_avg_sim = self.contrastive_loss(i2t_sim, t2i_sim, labels)
+            pass
 
-        loss = cmpm_loss + cmpc_loss + combine_loss + part_loss 
-
-        return cmpm_loss.item(), cmpc_loss.item(), combine_loss.item(), part_loss.item(), loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim, each_part_i2t, each_part_t2i
+        return cmpm_loss.item(), cmpc_loss.item(), combine_loss.item(), part_loss.item(), loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, each_part_i2t, each_part_t2i
 
 
 class AverageMeter(object):

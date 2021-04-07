@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from utils.metric import AverageMeter, Loss, constraints_loss
 from test import test
 from config import data_config, network_config, lr_scheduler, get_image_unique
-from train_config import config
+from debug_config import config
 from tqdm import tqdm
 import sys
 from solver import WarmupMultiStepLR, RandomErasing
@@ -92,12 +92,12 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         # loss
         #cmpm_loss, cmpc_loss, cont_loss, loss, image_precision, text_precision, pos_avg_sim, neg_arg_sim, local_pos_avg_sim, local_neg_avg_sim = compute_loss(
         #    global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
-        cmpm_loss, cmpc_loss, combine_loss, part_loss, loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim, part_i2t, part_t2i = compute_loss(
+        cmpm_loss, cmpc_loss, combine_loss, part_loss, loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim,  part_i2t, part_t2i = compute_loss(
             args.num_epochs, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
 
         if step % 10 == 0:
-            print('epoch:{}, step:{}, cmpm_loss:{:.3f}, cmpc_loss:{:.3f}, combine_loss:{:.3f}, part_loss:{:.3f}, pos_sim_avg:{:.3f}, neg_sim_avg:{:.3f}, cb_pos_sim_avg:{:.3f}, cb_neg_sim_avg:{:.3f}'.
-                  format(epoch, step, cmpm_loss, cmpc_loss, combine_loss, part_loss, pos_avg_sim, neg_avg_sim, cb_pos_avg_sim, cb_neg_avg_sim))
+            print('epoch:{}, step:{}, cmpm_loss:{:.3f}, cmpc_loss:{:.3f}, combine_loss:{:.3f}, part_loss:{:.3f}, pos_sim_avg:{:.3f}, neg_sim_avg:{:.3f}'.
+                  format(epoch, step, cmpm_loss, cmpc_loss, combine_loss, part_loss, pos_avg_sim, neg_avg_sim))
             print('part_i2t', part_i2t)
             print('part_t2i', part_t2i)
 

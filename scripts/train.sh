@@ -12,10 +12,10 @@ PRETRAINED_PATH=$BASE_ROOT/pretrained/resnet50-19c8e357.pth
 FOCAL_TYPE=none
 
 lr=0.00025
-num_epochs=60
-batch_size=16
+num_epochs=70
+batch_size=32
 lr_decay_ratio=0.9
-epochs_decay=20_30_40
+epochs_decay=30_40_50
 
 num_classes=11003
 
