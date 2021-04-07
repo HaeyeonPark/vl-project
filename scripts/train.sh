@@ -24,6 +24,7 @@ python $BASE_ROOT/train.py \
     --CMPM \
     --COMBINE \
     --PART \
+    --CONT \
     --pretrained \
     --model_path $PRETRAINED_PATH \
     --log_dir $LOG_DIR/lr-$lr-decay-$lr_decay_ratio-batch-$batch_size \

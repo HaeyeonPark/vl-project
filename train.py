@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from utils.metric import AverageMeter, Loss, constraints_loss
 from test import test
 from config import data_config, network_config, lr_scheduler, get_image_unique
-from debug_config import config
+from train_config import config
 from tqdm import tqdm
 import sys
 from solver import WarmupMultiStepLR, RandomErasing
@@ -92,14 +92,19 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         # loss
         #cmpm_loss, cmpc_loss, cont_loss, loss, image_precision, text_precision, pos_avg_sim, neg_arg_sim, local_pos_avg_sim, local_neg_avg_sim = compute_loss(
         #    global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
-        cmpm_loss, cmpc_loss, combine_loss, part_loss, loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim,  part_i2t, part_t2i = compute_loss(
+        loss, result_dict, each_part_i2t, each_part_t2i = compute_loss(
             args.num_epochs, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
 
-        if step % 10 == 0:
-            print('epoch:{}, step:{}, cmpm_loss:{:.3f}, cmpc_loss:{:.3f}, combine_loss:{:.3f}, part_loss:{:.3f}, pos_sim_avg:{:.3f}, neg_sim_avg:{:.3f}'.
-                  format(epoch, step, cmpm_loss, cmpc_loss, combine_loss, part_loss, pos_avg_sim, neg_avg_sim))
-            print('part_i2t', part_i2t)
-            print('part_t2i', part_t2i)
+        if step % 20 == 0:
+            print('epoch:{}, step:{}'.format(epoch, step), end=' ') 
+            for k in result_dict:
+                print(',',k, ':{:.3f}'.format(result_dict[k]),sep='', end=' ')
+            print('\neach_part_t2i',each_part_t2i)
+            print('each_part_i2t',each_part_i2t)
+            #print('epoch:{}, step:{}, cmpm_loss:{:.3f}, cmpc_loss:{:.3f}, combine_loss:{:.3f}, part_loss:{:.3f}, pos_sim_avg:{:.3f}, neg_sim_avg:{:.3f}'.
+            #      format(epoch, step, cmpm_loss, cmpc_loss, combine_loss, part_loss, pos_avg_sim, neg_avg_sim))
+            #print('part_i2t', part_i2t)
+            #print('part_t2i', part_t2i)
 
         # constrain embedding with the same id at the end of one epoch
         if (args.constraints_images or args.constraints_text) and step == len(train_loader) - 1:
@@ -118,8 +123,8 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         end = time.time()
         
         train_loss.update(loss.item(), images.shape[0])
-        image_pre.update(image_precision, images.shape[0])
-        text_pre.update(text_precision, images.shape[0])
+        image_pre.update(result_dict['image_precision'], images.shape[0])
+        text_pre.update(result_dict['text_precision'], images.shape[0])
     return train_loss.avg, batch_time.avg, image_pre.avg, text_pre.avg
 
 

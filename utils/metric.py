@@ -201,6 +201,7 @@ class Loss(nn.Module):
         self.CMPM = args.CMPM
         self.CMPC = args.CMPC
         self.COMBINE = args.COMBINE
+        self.CONT = args.CONT
         self.PART = args.PART
         self.epsilon = args.epsilon
         self.num_classes = args.num_classes
@@ -335,30 +336,29 @@ class Loss(nn.Module):
 
         return i2t_similarities #, t2i_similarities
 
-    def contrastive_loss(self, i2t_similarites, t2i_similarities, labels):
-        batch_size = i2t_similarites.shape[0]
-        labels_reshape = torch.reshape(labels, (batch_size, 1))
+    def contrastive_loss(self, local_img_value, weiTexts, labels):
+        # i2t
+        n_i, n_t, n_p, dim = weiTexts.size()
+        local_img_expand = local_img_value.expand(n_t, n_i, n_p, dim)
+
+        weiTexts_T = weiTexts.transpose(0,1)
+        i2t_sim = compute_similarity(local_img_expand, weiTexts_T, dim=-1) # 32*16*6
+        i2t_sim = i2t_sim.mean(dim=-1) # 32*16
+        i2t_pred = F.softmax(i2t_sim * self.args.lambda_softmax, dim=0)
+
+        labels_reshape = labels.unsqueeze(1)
         labels_dist = labels_reshape - labels_reshape.t()
         labels_mask = (labels_dist == 0)
+        labels_mask = torch.cat((labels_mask, labels_mask), dim=0)
+        labels = labels_mask.float() / labels_mask.float().norm(p=1, dim=0)
 
-        # normalize the true matching distribution
-        labels_mask_norm = labels_mask.float() / labels_mask.float().norm(dim=1)
-       
+        cont_loss = i2t_pred * (torch.log(i2t_pred) - torch.log(labels + self.args.epsilon))
+        cont_loss = torch.sum(cont_loss, dim=0).mean()
 
-        # S(I,T) = i2t_pred author said adding softmax function is beneficial for training. 
-        # it converges faster
-        i2t_pred = F.softmax(i2t_similarites * self.args.lambda_softmax, dim=1)
-        i2t_loss = i2t_pred * (F.log_softmax(i2t_similarites * self.args.lambda_softmax, dim=1) - torch.log(labels_mask_norm + self.epsilon))
-        sim_cos = i2t_similarites
+        pos_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask))
+        neg_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask == 0))
 
-        pos_avg_sim = torch.mean(torch.masked_select(sim_cos, labels_mask))
-        neg_avg_sim = torch.mean(torch.masked_select(sim_cos, labels_mask == 0))
-
-        # author said only use i2t similarities achieve higher performance
-        # constrastive_loss = torch.mean(torch.sum(i2t_loss, dim=1)) + torch.mean(torch.sum(t2i_loss, dim=1))
-        constrastive_loss = torch.mean(torch.sum(i2t_loss, dim=1))
-
-        return constrastive_loss, pos_avg_sim, neg_avg_sim
+        return cont_loss, pos_avg_sim, neg_avg_sim
 
 
     def compute_cmpc_loss(self, image_embeddings, text_embeddings, labels):
@@ -554,24 +554,22 @@ class Loss(nn.Module):
 
     def forward(self, total_epoch, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, text_length,
                 labels):
-        cmpm_loss = 0.0
-        cmpc_loss = 0.0
-        cont_loss = 0.0
-        image_precision = 0.0
-        text_precision = 0.0
-        neg_avg_sim = 0.0
-        pos_avg_sim = 0.0
-        cb_pos_avg_sim = 0.0
-        cb_neg_avg_sim = 0.0
         loss = 0
+        result_dict = {}
         if self.CMPM:
             cmpm_loss, pos_avg_sim, neg_avg_sim = self.compute_cmpm_loss(global_img_feat, global_text_feat,
                                                                          labels)
             loss += cmpm_loss
+            result_dict['cmpm_loss'] = cmpm_loss.item()
+            result_dict['pos_avg_sim'] = pos_avg_sim
+            result_dict['neg_avg_sim'] = neg_avg_sim
         if self.CMPC:
             cmpc_loss, image_precision, text_precision = self.compute_cmpc_loss(global_img_feat,
                                                                                 global_text_feat, labels)
             loss += cmpc_loss
+            result_dict['cmpc_loss'] = cmpc_loss.item()
+            result_dict['image_precision'] = image_precision
+            result_dict['text_precision'] = text_precision
 
         weiTexts = self.compute_weiTexts(local_img_query, local_text_key, local_text_value, text_length, self.args)
         combineTexts = self.compute_combineTexts(weiTexts)
@@ -580,6 +578,8 @@ class Loss(nn.Module):
             combine_loss = self.compute_combine_loss(combineTexts, local_img_value, labels, self.args.lambda_softmax, self.args.epsilon)
             combine_loss = combine_loss * self.args.lambda_cont
             loss += combine_loss
+            result_dict['combine_loss'] = combine_loss.item()
+
         if self.PART:
             # i2t + t2i
             part_loss, each_part_i2t, each_part_t2i = self.compute_part_loss(weiTexts, combineTexts, local_img_value)
@@ -587,11 +587,18 @@ class Loss(nn.Module):
             beta = epoch / total_epoch
             part_loss = part_loss * self.args.lambda_cont * min(1, exp(beta)+ beta -1)
             loss += part_loss
-        if self.CONT:
-            #cont_loss, local_pos_avg_sim, local_neg_avg_sim = self.contrastive_loss(i2t_sim, t2i_sim, labels)
-            pass
+            result_dict['part_loss'] = part_loss.item()
 
-        return cmpm_loss.item(), cmpc_loss.item(), combine_loss.item(), part_loss.item(), loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, each_part_i2t, each_part_t2i
+        if self.CONT:
+            cont_loss, local_pos_avg_sim, local_neg_avg_sim = self.contrastive_loss(local_img_value, weiTexts, labels)
+            cont_loss = cont_loss * self.args.lambda_cont
+            loss += cont_loss
+            result_dict['cont_loss'] = cont_loss.item()
+            result_dict['local_pos_avg_sim'] = local_pos_avg_sim
+            result_dict['local_neg_avg_sim'] = local_neg_avg_sim
+
+        #return cmpm_loss.item(), cmpc_loss.item(), combine_loss.item(), part_loss.item(), loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, each_part_i2t, each_part_t2i
+        return loss, result_dict, each_part_i2t, each_part_t2i
 
 
 class AverageMeter(object):
