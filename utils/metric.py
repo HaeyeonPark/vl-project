@@ -468,6 +468,7 @@ class Loss(nn.Module):
         return combineTexts
 
     def compute_combine_loss(self, combineTexts, local_img_value, labels, lambda_cb, epsilon):
+        '''
         #to align combined texts to image
         # matrix ver + not add partwise
         labels_reshape = labels.unsqueeze(1)
@@ -486,7 +487,7 @@ class Loss(nn.Module):
 
         combine_loss = pred * (torch.log(pred) - torch.log(labels_mask + epsilon))
         combine_loss = torch.sum(combine_loss, dim=2).mean()
-        """
+        '''
         n = local_img_value.size(0)
         i2t_sim=[]
 
@@ -508,8 +509,7 @@ class Loss(nn.Module):
 
         cb_pos_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask))
         cb_neg_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask==0))
-        """
-        return combine_loss #, cb_pos_avg_sim, cb_neg_avg_sim
+        return combine_loss ,cb_pos_avg_sim, cb_neg_avg_sim
 
     def compute_part_loss(self, weiTexts, combineTexts, local_img_value):
         # i2t
@@ -575,10 +575,12 @@ class Loss(nn.Module):
         combineTexts = self.compute_combineTexts(weiTexts)
         if self.COMBINE:
             # image based attended weighted vectors 16 * 32 * 6 * 768
-            combine_loss = self.compute_combine_loss(combineTexts, local_img_value, labels, self.args.lambda_softmax, self.args.epsilon)
+            combine_loss, cb_pos_avg_sim, cb_neg_avg_sim = self.compute_combine_loss(combineTexts, local_img_value, labels, self.args.lambda_softmax, self.args.epsilon)
             combine_loss = combine_loss * self.args.lambda_cont
             loss += combine_loss
             result_dict['combine_loss'] = combine_loss.item()
+            result_dict['cb_pos_avg_sim'] = cb_pos_avg_sim
+            result_dict['cb_neg_avg_sim'] = cb_neg_avg_sim
 
         if self.PART:
             # i2t + t2i
