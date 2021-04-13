@@ -198,9 +198,10 @@ def main(args):
                 best_epoch = epoch
                 ac_t2i_top1_best = ac_top1_t2i
                 is_best=True
-                save_checkpoint(state, epoch, args.checkpoint_dir, is_best)
+                if epoch >=30: # 
+                    save_checkpoint(state, epoch, args.checkpoint_dir, is_best)
             else:
-                if epoch %10 ==0:
+                if epoch %10 ==0 and epoch>=30:
                     save_checkpoint(state, epoch, args.checkpoint_dir, is_best)
             
             logging.info('epoch:{}'.format(epoch))

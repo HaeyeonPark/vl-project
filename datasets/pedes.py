@@ -8,6 +8,8 @@ from PIL import Image
 from utils.directory import check_exists
 from scipy.misc import imread, imresize
 import datasets.preprocess as preprocess
+import collections
+import random
 
 class Namespace:
     def __init__(self, **kwargs):
@@ -36,13 +38,15 @@ class CuhkPedes(data.Dataset):
         self.split = split.lower()
         self.vocab_path = vocab_path
         self.min_word_count = min_word_count
+        self.label_to_caption=collections.defaultdict(list)
+        self.data_aug=2 # how many times per image
 
         if not check_exists(self.image_root):
             raise RuntimeError('Dataset not found or corrupted.' +
                                'Please follow the directions to generate datasets')
 
         print('Reading data from json')
-        data = self.get_data_from_json()
+        data = self.get_data_from_json(split)
         self.read_data(data)
 
     
@@ -73,8 +77,20 @@ class CuhkPedes(data.Dataset):
         data['captions'] = captions
 
         return data
-    
-    def get_data_from_json(self):
+
+    def aggregate_captions(self, split_data, data):
+        captions = []
+        idx=0
+        for el in split_data:
+            label = el['id'] -1 # data['id]: 0~ split_data['id]: 1~ 
+            for caption in el['captions']:
+                captions.append(caption)
+                self.label_to_caption[label].append(idx)
+                idx+=1
+        data['captions'] = captions
+        return data
+
+    def get_data_from_json(self, split):
         args = Namespace(min_word_count=self.min_word_count, remove_stopwords = None, out_root=None)
 
         split_data = self.load_split(self.split)
@@ -92,8 +108,12 @@ class CuhkPedes(data.Dataset):
         data = preprocess.process_dataset(self.split, split_decodedata, args, write=False)
         
 
-        data = self.add_captions_to_data(split_data, data)
+        #data = self.add_captions_to_data(split_data, data)
         #data = self.add_caption_to_data(split_data, data)
+        if split =='train':
+            data = self.aggregate_captions(split_data, data)
+        else:
+            data = self.add_captions_to_data(split_data, data)
         return data
 
     def load_split(self, split):   
@@ -152,7 +172,16 @@ class CuhkPedes(data.Dataset):
               tuple: (images, labels, captions)
         """
         if self.split == 'train':
-            img_path, caption, label = self.train_images[index], self.train_captions[index], self.train_labels[index]
+            num_images = len(self.train_labels) # 34054
+            label, img_path = self.train_labels[index % num_images], self.train_images[index % num_images]
+            # randomly sample 2 captions per image and aggregate to list  
+            #assert len(self.label_to_caption[label])>=2
+            caption_idx = random.sample(self.label_to_caption[label],2)
+            caption = [self.train_captions[cidx] for cidx in caption_idx]
+            
+            #img_path, caption, label = self.train_images[index], self.train_captions[index], self.train_labels[index]
+
+            
         elif self.split == 'val':
             img_path, caption, label = self.val_images[index], self.val_captions[index], self.val_labels[index]
         else:
@@ -187,7 +216,7 @@ class CuhkPedes(data.Dataset):
 
     def __len__(self):
         if self.split == 'train':
-            return len(self.train_labels)
+            return len(self.train_labels) * self.data_aug
         elif self.split == 'val':
             return len(self.val_labels)
         else:
