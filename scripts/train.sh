@@ -23,7 +23,8 @@ python $BASE_ROOT/train.py \
     --CMPC \
     --CMPM \
     --COMBINE \
-    --PART \
+    --PART_I2T \
+    --PART_CBT2I \
     --CONT \
     --pretrained \
     --model_path $PRETRAINED_PATH \
@@ -41,6 +42,7 @@ python $BASE_ROOT/train.py \
     --focal_type $FOCAL_TYPE \
     --feature_size 768 \
     --lambda_cont 0.1 \
+    --lambda_combine 0.1 \
     --part2 2 \
     --part3 3 \
     ##--reranking

@@ -27,7 +27,8 @@ def parse_args():
     parser.add_argument('--CMPC', action='store_true', default=False)
     parser.add_argument('--CONT', action='store_true',default=False)
     parser.add_argument('--COMBINE', action='store_true',default=False)
-    parser.add_argument('--PART', action='store_true',default=False)
+    parser.add_argument('--PART_I2T', action='store_true',default=False)
+    parser.add_argument('--PART_CBT2I', action='store_true',default=False)
     parser.add_argument('--focal_type', type=str, default='none')
     parser.add_argument('--cnn_dropout_keep', type=float, default=0.999)
     parser.add_argument('--constraints_text', action='store_true')
@@ -38,6 +39,7 @@ def parse_args():
     parser.add_argument('--part3', type=int, default=3)
     parser.add_argument('--lambda_softmax', type=float, default=20.0, help='scale constant')
     parser.add_argument('--lambda_cont', type=float, default=0.1, help='hyper-parameter of contrastive loss')
+    parser.add_argument('--lambda_combine', type=float, default=0.1, help='hyper-parameter of combine loss')
     parser.add_argument('--reranking', action='store_true', default=False, help='whether reranking during testing')
     
     # Optimization setting

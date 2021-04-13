@@ -202,7 +202,8 @@ class Loss(nn.Module):
         self.CMPC = args.CMPC
         self.COMBINE = args.COMBINE
         self.CONT = args.CONT
-        self.PART = args.PART
+        self.PART_I2T = args.PART_I2T
+        self.PART_CBT2I = args.PART_CBT2I
         self.epsilon = args.epsilon
         self.num_classes = args.num_classes
         self.cb_layer = nn.Linear(args.feature_size*2, args.feature_size)
@@ -469,6 +470,7 @@ class Loss(nn.Module):
 
     def compute_combine_loss(self, combineTexts, local_img_value, labels, lambda_cb, epsilon):
         #to align combined texts to image
+        '''
         # matrix ver + not add partwise
         labels_reshape = labels.unsqueeze(1)
         labels_dist = labels_reshape - labels_reshape.t()
@@ -486,7 +488,7 @@ class Loss(nn.Module):
 
         combine_loss = pred * (torch.log(pred) - torch.log(labels_mask + epsilon))
         combine_loss = torch.sum(combine_loss, dim=2).mean()
-        """
+        '''
         n = local_img_value.size(0)
         i2t_sim=[]
 
@@ -508,49 +510,59 @@ class Loss(nn.Module):
 
         cb_pos_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask))
         cb_neg_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask==0))
-        """
-        return combine_loss #, cb_pos_avg_sim, cb_neg_avg_sim
+        return combine_loss, cb_pos_avg_sim, cb_neg_avg_sim
 
-    def compute_part_loss(self, weiTexts, combineTexts, local_img_value):
+    def compute_part_loss(self, weiTexts, combineTexts, local_img_value, PART_I2T, PART_CBT2I):
         # i2t
-        n_i, n_t, n_p, dim = weiTexts.size()
-        local_img_expand = local_img_value.expand(n_t, n_i, n_p, dim)
-        local_img_expand = local_img_expand.transpose(0,1)
+        part_result = {}
+        part_loss = 0
+        if PART_I2T:
+            n_i, n_t, n_p, dim = weiTexts.size()
+            local_img_expand = local_img_value.expand(n_t, n_i, n_p, dim)
+            local_img_expand = local_img_expand.transpose(0,1)
 
-        combineTexts_expand = combineTexts.expand(n_t, n_i, n_p, dim)
-        combineTexts_expand = combineTexts_expand.transpose(0,1)
+            combineTexts_expand = combineTexts.expand(n_t, n_i, n_p, dim)
+            combineTexts_expand = combineTexts_expand.transpose(0,1)
 
-        i2t_sim = compute_similarity(local_img_expand, weiTexts, dim=3)
-        i2t_pred = F.softmax(i2t_sim * self.args.lambda_softmax, dim=1)
+            i2t_sim = compute_similarity(local_img_expand, weiTexts, dim=3)
+            i2t_pred = F.softmax(i2t_sim * self.args.lambda_softmax, dim=1)
 
-        i2cbt_sim = compute_similarity(combineTexts_expand, weiTexts, dim=3)
-        i2cbt_pred = F.softmax(i2cbt_sim * self.args.lambda_softmax, dim=1)
-        part_i2t_loss = i2t_pred * (torch.log(i2t_pred) - torch.log(i2cbt_pred + self.epsilon))
-        part_i2t_loss = torch.sum(part_i2t_loss, dim=1)
+            i2cbt_sim = compute_similarity(combineTexts_expand, weiTexts, dim=3)
+            i2cbt_pred = F.softmax(i2cbt_sim * self.args.lambda_softmax, dim=1)
+            part_i2t_loss = i2t_pred * (torch.log(i2t_pred) - torch.log(i2cbt_pred + self.epsilon))
+            part_i2t_loss = torch.sum(part_i2t_loss, dim=1)
 
-        each_part_i2t_loss = torch.mean(part_i2t_loss, dim=0) # each part
-        part_i2t_loss = torch.mean(part_i2t_loss)
+            each_part_i2t_loss = torch.mean(part_i2t_loss, dim=0) # each part
+            each_part_i2t_loss = each_part_i2t_loss.detach().to('cpu').numpy()
+            part_result['each_part_i2t_loss'] = each_part_i2t_loss
+
+            part_i2t_loss = torch.mean(part_i2t_loss)
+            part_loss +=part_i2t_loss
 
         # cbt2i
-        local_img_expand_t2i = local_img_value.expand(n_i, n_i, n_p, dim)
-        combineTexts_expand_set = combineTexts.expand(n_i, n_i, n_p, dim)
-        combineTexts_expand_t2i = combineTexts_expand_set.transpose(0,1)
+        if PART_CBT2I:
+            local_img_expand_t2i = local_img_value.expand(n_i, n_i, n_p, dim)
+            combineTexts_expand_set = combineTexts.expand(n_i, n_i, n_p, dim)
+            combineTexts_expand_t2i = combineTexts_expand_set.transpose(0,1)
 
-        cbt2i_sim = compute_similarity(local_img_expand_t2i, combineTexts_expand_t2i, dim=3)
-        cbt2i_pred = F.softmax(cbt2i_sim* self.args.lambda_softmax, dim=1)
+            cbt2i_sim = compute_similarity(local_img_expand_t2i, combineTexts_expand_t2i, dim=3)
+            cbt2i_pred = F.softmax(cbt2i_sim* self.args.lambda_softmax, dim=1)
 
-        cbt2cbt_sim = compute_similarity(combineTexts_expand_t2i, combineTexts_expand_set, dim=3)
-        cbt2cbt_pred = F.softmax(cbt2cbt_sim * self.args.lambda_softmax, dim=1)
+            cbt2cbt_sim = compute_similarity(combineTexts_expand_t2i, combineTexts_expand_set, dim=3)
+            cbt2cbt_pred = F.softmax(cbt2cbt_sim * self.args.lambda_softmax, dim=1)
 
-        part_t2i_loss = cbt2i_pred * (torch.log(cbt2i_pred) - torch.log(cbt2cbt_pred + self.epsilon))
-        part_t2i_loss = torch.sum(part_t2i_loss, dim=1)
+            part_t2i_loss = cbt2i_pred * (torch.log(cbt2i_pred) - torch.log(cbt2cbt_pred + self.epsilon))
+            part_t2i_loss = torch.sum(part_t2i_loss, dim=1)
 
-        each_part_t2i_loss = torch.mean(part_t2i_loss, dim=0) # each part
-        part_t2i_loss = torch.mean(part_t2i_loss)
-        
-        #
-        part_loss = part_i2t_loss + part_t2i_loss
-        return part_loss, each_part_i2t_loss, each_part_t2i_loss
+            each_part_t2i_loss = torch.mean(part_t2i_loss, dim=0) # each part
+            each_part_t2i_loss = each_part_t2i_loss.detach().to('cpu').numpy()
+            part_result['each_part_t2i_loss'] = each_part_t2i_loss
+            
+            part_t2i_loss = torch.mean(part_t2i_loss)
+            part_loss += part_t2i_loss
+            
+        part_result['part_loss'] = part_loss 
+        return part_result
 
     def forward(self, total_epoch, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, text_length,
                 labels):
@@ -575,19 +587,26 @@ class Loss(nn.Module):
         combineTexts = self.compute_combineTexts(weiTexts)
         if self.COMBINE:
             # image based attended weighted vectors 16 * 32 * 6 * 768
-            combine_loss = self.compute_combine_loss(combineTexts, local_img_value, labels, self.args.lambda_softmax, self.args.epsilon)
+            combine_loss, cb_pos_avg_sim, cb_neg_avg_sim = self.compute_combine_loss(combineTexts, local_img_value, labels, self.args.lambda_softmax, self.args.epsilon)
             combine_loss = combine_loss * self.args.lambda_cont
             loss += combine_loss
             result_dict['combine_loss'] = combine_loss.item()
+            result_dict['cb_pos_avg_sim'] = cb_pos_avg_sim
+            result_dict['cb_neg_avg_sim'] = cb_neg_avg_sim
 
-        if self.PART:
+        if self.PART_I2T or self.PART_CBT2I:
             # i2t + t2i
-            part_loss, each_part_i2t, each_part_t2i = self.compute_part_loss(weiTexts, combineTexts, local_img_value)
+            part_result = self.compute_part_loss(weiTexts, combineTexts, local_img_value, self.PART_I2T, self.PART_CBT2I)
+
+            #part_loss, each_part_i2t, each_part_t2i = self.compute_part_loss(weiTexts, combineTexts, local_img_value, self.PART_I2T, self.PART_CBT2I)
+            #part_loss = part_loss * self.args.lambda_cont * min(1, exp(beta)+ beta -1)
+            #result_dict['part_loss'] = part_loss.item()
 
             beta = epoch / total_epoch
-            part_loss = part_loss * self.args.lambda_cont * min(1, exp(beta)+ beta -1)
-            loss += part_loss
-            result_dict['part_loss'] = part_loss.item()
+            part_result['part_loss'] *= self.args.lambda_combine * min(1, exp(beta) + beta -1)
+            loss += part_result['part_loss']
+            part_result['part_loss'] = part_result['part_loss'].item()
+            result_dict.update(part_result)
 
         if self.CONT:
             cont_loss, local_pos_avg_sim, local_neg_avg_sim = self.contrastive_loss(local_img_value, weiTexts, labels)
@@ -598,7 +617,7 @@ class Loss(nn.Module):
             result_dict['local_neg_avg_sim'] = local_neg_avg_sim
 
         #return cmpm_loss.item(), cmpc_loss.item(), combine_loss.item(), part_loss.item(), loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, each_part_i2t, each_part_t2i
-        return loss, result_dict, each_part_i2t, each_part_t2i
+        return loss, result_dict
 
 
 class AverageMeter(object):

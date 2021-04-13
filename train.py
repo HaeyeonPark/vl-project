@@ -22,6 +22,8 @@ import pickle
 import random
 import math
 
+np.set_printoptions(precision=4) # for printing each part loss
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -92,15 +94,22 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         # loss
         #cmpm_loss, cmpc_loss, cont_loss, loss, image_precision, text_precision, pos_avg_sim, neg_arg_sim, local_pos_avg_sim, local_neg_avg_sim = compute_loss(
         #    global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
-        loss, result_dict, each_part_i2t, each_part_t2i = compute_loss(
+        loss, result_dict = compute_loss(
             args.num_epochs, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
 
         if step % 20 == 0:
             print('epoch:{}, step:{}'.format(epoch, step), end=' ') 
             for k in result_dict:
-                print(',',k, ':{:.3f}'.format(result_dict[k]),sep='', end=' ')
-            print('\neach_part_t2i',each_part_t2i)
-            print('each_part_i2t',each_part_i2t)
+                if k not in ['each_part_i2t_loss', 'each_part_t2i_loss']:
+                    print(',',k, ':{:.3f}'.format(result_dict[k]),sep='', end=' ')
+            print()
+            if args.PART_I2T:
+                print('each_part_i2t', result_dict['each_part_i2t_loss'])
+            if args.PART_CBT2I:
+                print('each_part_t2i', result_dict['each_part_t2i_loss'])
+            #print('\neach_part_t2i',each_part_t2i)
+            #print('each_part_i2t',each_part_i2t)
+
             #print('epoch:{}, step:{}, cmpm_loss:{:.3f}, cmpc_loss:{:.3f}, combine_loss:{:.3f}, part_loss:{:.3f}, pos_sim_avg:{:.3f}, neg_sim_avg:{:.3f}'.
             #      format(epoch, step, cmpm_loss, cmpc_loss, combine_loss, part_loss, pos_avg_sim, neg_avg_sim))
             #print('part_i2t', part_i2t)
