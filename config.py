@@ -16,7 +16,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def data_config(image_dir, anno_dir, batch_size, split, max_length, transform, vocab_path='', min_word_count=0, cap_transform=None):
+def data_config(image_dir, anno_dir, batch_size, split, max_length, transform, vocab_path='', min_word_count=0, cap_transform=None, vis=False):
     
     data_split = CuhkPedes(image_dir, anno_dir, split, max_length, transform, \
                             vocab_path=vocab_path, min_word_count=min_word_count, cap_transform=cap_transform)
@@ -26,6 +26,8 @@ def data_config(image_dir, anno_dir, batch_size, split, max_length, transform, v
     else:
         shuffle = False
         loader = data.DataLoader(data_split, batch_size, shuffle=shuffle, num_workers=4, drop_last=True)    
+        if vis == True:
+            return loader, data_split.test_images
     return loader
 
 def get_image_unique(image_dir, anno_dir, batch_size, split, max_length, transform):

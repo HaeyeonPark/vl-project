@@ -9,6 +9,7 @@ def parse_args():
     parser.add_argument('--image_dir', type=str, default='/workspace/data', help='directory to store dataset')
     parser.add_argument('--anno_dir', type=str, default='/workspace/code/data/processed_data',help='directory to store anno file')
     parser.add_argument('--model_path', type=str, default ='/workspace/code/model_data/exp5',help='directory to exp ')
+    parser.add_argument('--best_model_path', type=str, default ='/workspace/code/model_data/exp5/lr-0.00025-decay-0.9-batch-16/best_model.pth.tar',help='directory to exp ')
     parser.add_argument('--log_dir', type=str, default='/workspace/code/logs/exp5', help='directory to store log')
 
     parser.add_argument('--feature_size', type=int, default=768)
@@ -23,6 +24,22 @@ def parse_args():
     parser.add_argument('--gpus', type=str, default='0,1')
     parser.add_argument('--epoch_start', type=int, default=0)
     parser.add_argument('--checkpoint_dir', type=str, default='')
+
+    # for compare test
+    # test type
+    parser.add_argument('--test_type', type=str, default='basic') # combine 
+    parser.add_argument('--CMPM', action='store_true',default=False)
+    parser.add_argument('--CMPC', action='store_true', default=False)
+    parser.add_argument('--CONT', action='store_true',default=False)
+    parser.add_argument('--COMBINE', action='store_true',default=False)
+    parser.add_argument('--PART_I2T', action='store_true',default=False)
+    parser.add_argument('--PART_CBT2I', action='store_true',default=False)
+
+    parser.add_argument('--epsilon', type=float, default=1e-8)
+    parser.add_argument('--num_classes', type=int, default=11003)
+
+    parser.add_argument('--resume', action='store_true', default=True, help='whether or not to restore the pretrained whole model')
+
 
 
     args = parser.parse_args()

@@ -209,10 +209,10 @@ class Loss(nn.Module):
         self.cb_layer = nn.Linear(args.feature_size*2, args.feature_size)
         self.W = Parameter(torch.randn(args.feature_size, args.num_classes))
         if args.resume:
-            checkpoint = torch.load(args.model_path)
-            self.W.copy_(checkpoint['W'])
-            self.cb_layer.weight.copy_(checkpoint['cb_layer.weight'])
-            self.cb_layer.bias.copy_(checkpoint['cb_layer.bias'])
+            checkpoint = torch.load(args.best_model_path)
+            self.W = Parameter(checkpoint['W'])
+            self.cb_layer.weight = Parameter(checkpoint['cb_layer.weight'])
+            self.cb_layer.bias = Parameter(checkpoint['cb_layer.bias'])
             print('=========> Loading in parameter W, combine layer from pretrained models')
         else:
             self.init_weight()
@@ -640,8 +640,7 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-
-def compute_topk(query_global, query, value_bank, gallery_global, gallery_key, gallery_value,
+def compute_topk_combine(query_global, query, value_bank, gallery_global, gallery_feat,
                        gallery_length, target_query, target_gallery, args, k_list=[1, 5, 20], reverse=False):
     global_result = []
     local_result = []
@@ -654,6 +653,12 @@ def compute_topk(query_global, query, value_bank, gallery_global, gallery_key, g
     sim_cosine_global = torch.matmul(query_global, gallery_global.t())
 
     
+    # compute_i2t_sim : weighted text구해서 similarity계산까지 함
+    # combine test라면 weighted text구하고 합쳐진 상태이므로 compute similarity함수이용해서 해주면 됨 여기수정 !!
+    # 원래도 local text에 맨앞이 global 이었당. 
+    # 그리고 gallery_key, gallery_value parameter로 없애도 된당,, 
+    # compute_topk_combine을 만들어야 할듯 
+
     for i in range(0, query.shape[0], 200):
         i2t_sim = Loss.compute_i2t_sim(query[i:i + 200], value_bank[i:i + 200], gallery_key, gallery_value, gallery_length, args)
         sim_cosine.append(i2t_sim)
@@ -680,10 +685,55 @@ def compute_topk(query_global, query, value_bank, gallery_global, gallery_key, g
         result.extend(topk(sim_cosine_all, target_query, target_gallery, k=k_list, dim=0, print_index=False, reid_sim=reid_sim))
     return global_result, local_result, result
 
+
+def compute_topk(query_global, query, value_bank, gallery_global, gallery_key, gallery_value,
+                       gallery_length, target_query, target_gallery, args, k_list=[1, 5, 20], reverse=False, return_index=False):
+    global_result = []
+    local_result = []
+    result = []
+    sim_cosine = []
+
+    query_global = F.normalize(query_global, p=2, dim=1)
+    gallery_global = F.normalize(gallery_global, p=2, dim=1)
+
+    sim_cosine_global = torch.matmul(query_global, gallery_global.t())
+
+
+    for i in range(0, query.shape[0], 200):
+        i2t_sim = Loss.compute_i2t_sim(query[i:i + 200], value_bank[i:i + 200], gallery_key, gallery_value, gallery_length, args)
+        sim_cosine.append(i2t_sim)
+
+    sim_cosine = torch.cat(sim_cosine, dim=0)
+    
+    sim_cosine_all = sim_cosine_global + sim_cosine
+    reid_sim = None
+    if(args.reranking):
+        reid_sim = torch.matmul(query_global, query_global.t())
+
+    global_result.extend(topk(sim_cosine_global, target_gallery, target_query, k=k_list))
+    if reverse:
+        global_result.extend(topk(sim_cosine_global, target_query, target_gallery, k=k_list, dim=0, print_index=False))
+
+    local_result.extend(topk(sim_cosine, target_gallery, target_query, k=k_list))
+    if reverse:
+        local_result.extend(topk(sim_cosine, target_query, target_gallery, k=k_list, dim=0, print_index=False))
+
+    if return_index==False:
+        # i2t
+        result.extend(topk(sim_cosine_all, target_gallery, target_query, k=k_list, reid_sim=reid_sim))
+        # t2i
+        if reverse:
+            result.extend(topk(sim_cosine_all, target_query, target_gallery, k=k_list, dim=0, print_index=False, reid_sim=reid_sim))
+        return global_result, local_result, result
+
+    elif return_index == True:
+        pred_index, correct = topk(sim_cosine_all, target_query, target_gallery, k=k_list, dim=0, return_index=return_index)
+        return pred_index.transpose(0,1), correct.transpose(0,1)
+
+
 def jaccard(a_list,b_list):
     return 1.0 - float(len(set(a_list)&set(b_list)))/float(len(set(a_list)|set(b_list)))*1.0
-
-def topk(sim, target_gallery, target_query, k=[1,5,10], dim=1, print_index=False, reid_sim = None):
+def topk(sim, target_gallery, target_query, k=[1,5,10], dim=1, print_index=False, reid_sim = None, return_index = False):
     result = []
     maxk = max(k)
     size_total = len(target_query)
@@ -715,9 +765,14 @@ def topk(sim, target_gallery, target_query, k=[1,5,10], dim=1, print_index=False
         pred_labels = pred_labels.t()
 
     correct = pred_labels.eq(target_query.view(1,-1).expand_as(pred_labels))
-    for topk in k:
-        #correct_k = torch.sum(correct[:topk]).float()
-        correct_k = torch.sum(correct[:topk], dim=0)
-        correct_k = torch.sum(correct_k > 0).float()
-        result.append(correct_k * 100 / size_total)
-    return result
+
+    if return_index == True:
+        return pred_index, correct
+    else:
+        for topk in k:
+            #correct_k = torch.sum(correct[:topk]).float()
+            correct_k = torch.sum(correct[:topk], dim=0)
+            correct_k = torch.sum(correct_k > 0).float()
+            result.append(correct_k * 100 / size_total)
+        return result
+

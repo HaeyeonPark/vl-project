@@ -103,7 +103,7 @@ def test(data_loader, network, args, unique_image):
         #global_result, local_result, result = compute_topk(global_img_feat_bank[unique_image], local_img_query_bank[unique_image], local_img_value_bank[unique_image], global_text_feat_bank, local_text_key_bank,
         #                                                local_text_value_bank, length_bank, labels_bank[unique_image], labels_bank, args, [1, 5, 10], True)
         global_result, local_result, result = compute_topk(global_img_feat_bank, local_img_query_bank, local_img_value_bank, global_text_feat_bank, local_text_key_bank,
-                                                        local_text_value_bank, length_bank, labels_bank_i, labels_bank_t, args, [1, 5, 10], True)
+                                                        local_text_value_bank, length_bank, labels_bank_i, labels_bank_t, args, [1, 5, 10], True,False)
 
         ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i, ac_top10_t2i = result
     
