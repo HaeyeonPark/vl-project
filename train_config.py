@@ -16,6 +16,8 @@ def parse_args():
     parser.add_argument('--log_dir', type=str, default='/workspace/code/logs', help='directory to store log')
     parser.add_argument('--model_path', type=str, default = '/workspace/code/pretrained/resnet50-19c8e357.pth', help='directory to pretrained model, whole model or just visual part')
 
+    # data 
+    parser.add_argument('--rand_sample', action='store_true', default=False, help='whether or not to randomly sample caption data')
 
     # Model setting
     parser.add_argument('--resume', action='store_true', default=False, help='whether or not to restore the pretrained whole model')

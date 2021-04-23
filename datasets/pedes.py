@@ -27,7 +27,7 @@ class CuhkPedes(data.Dataset):
     '''
 
     def __init__(self, image_root, anno_root, split, max_length, transform=None, target_transform=None, \
-                 cap_transform=None, vocab_path='', min_word_count=0):
+                 cap_transform=None, vocab_path='', min_word_count=0, rand_sample=False):
 
         self.image_root = image_root
         self.anno_root = anno_root
@@ -38,8 +38,10 @@ class CuhkPedes(data.Dataset):
         self.split = split.lower()
         self.vocab_path = vocab_path
         self.min_word_count = min_word_count
-        self.label_to_caption=collections.defaultdict(list)
-        self.data_aug=2 # how many times per image
+        self.rand_sample = rand_sample
+        if self.rand_sample == True:
+            self.label_to_caption=collections.defaultdict(list)
+            self.data_aug=2 # how many times per image
 
         if not check_exists(self.image_root):
             raise RuntimeError('Dataset not found or corrupted.' +
@@ -110,7 +112,7 @@ class CuhkPedes(data.Dataset):
 
         #data = self.add_captions_to_data(split_data, data)
         #data = self.add_caption_to_data(split_data, data)
-        if split =='train':
+        if split =='train' and self.rand_sample==True:
             data = self.aggregate_captions(split_data, data)
         else:
             data = self.add_captions_to_data(split_data, data)
@@ -172,16 +174,15 @@ class CuhkPedes(data.Dataset):
               tuple: (images, labels, captions)
         """
         if self.split == 'train':
-            num_images = len(self.train_labels) # 34054
-            label, img_path = self.train_labels[index % num_images], self.train_images[index % num_images]
-            # randomly sample 2 captions per image and aggregate to list  
-            #assert len(self.label_to_caption[label])>=2
-            caption_idx = random.sample(self.label_to_caption[label],2)
-            caption = [self.train_captions[cidx] for cidx in caption_idx]
-            
-            #img_path, caption, label = self.train_images[index], self.train_captions[index], self.train_labels[index]
-
-            
+            if self.rand_sample == True:
+                num_images = len(self.train_labels) # 34054
+                label, img_path = self.train_labels[index % num_images], self.train_images[index % num_images]
+                # randomly sample 2 captions per image and aggregate to list  
+                #assert len(self.label_to_caption[label])>=2
+                caption_idx = random.sample(self.label_to_caption[label],2)
+                caption = [self.train_captions[cidx] for cidx in caption_idx]
+            else:
+                img_path, caption, label = self.train_images[index], self.train_captions[index], self.train_labels[index]
         elif self.split == 'val':
             img_path, caption, label = self.val_images[index], self.val_captions[index], self.val_labels[index]
         else:
@@ -216,7 +217,10 @@ class CuhkPedes(data.Dataset):
 
     def __len__(self):
         if self.split == 'train':
-            return len(self.train_labels) * self.data_aug
+            if self.rand_sample == True:
+                return len(self.train_labels) * self.data_aug
+            else:
+                return len(self.train_labels)
         elif self.split == 'val':
             return len(self.val_labels)
         else:

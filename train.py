@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from utils.metric import AverageMeter, Loss, constraints_loss
 from test import test
 from config import data_config, network_config, lr_scheduler, get_image_unique
-from train_config import config
+from debug_config import config
 from tqdm import tqdm
 import sys
 from solver import WarmupMultiStepLR, RandomErasing
@@ -163,7 +163,7 @@ def main(args):
     cap_transform = None
 
     # data
-    train_loader = data_config(args.image_dir, args.anno_dir, args.batch_size, 'train', 100, train_transform, cap_transform=cap_transform)
+    train_loader = data_config(args.image_dir, args.anno_dir, args.batch_size, 'train', 100, train_transform, cap_transform=cap_transform, rand_sample=args.rand_sample)
 
     # why test dataloader 64 no error??
     test_loader = data_config(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)

@@ -46,6 +46,7 @@ python $BASE_ROOT/train.py \
     --part2 2 \
     --part3 3 \
     ##--reranking
+    ##--randsampling \
 
 
 

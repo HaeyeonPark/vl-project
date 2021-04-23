@@ -16,10 +16,10 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def data_config(image_dir, anno_dir, batch_size, split, max_length, transform, vocab_path='', min_word_count=0, cap_transform=None, vis=False):
+def data_config(image_dir, anno_dir, batch_size, split, max_length, transform, vocab_path='', min_word_count=0, cap_transform=None, vis=False, rand_sample=False):
     
     data_split = CuhkPedes(image_dir, anno_dir, split, max_length, transform, \
-                            vocab_path=vocab_path, min_word_count=min_word_count, cap_transform=cap_transform)
+                            vocab_path=vocab_path, min_word_count=min_word_count, cap_transform=cap_transform, rand_sample=rand_sample)
     if split == 'train':
         shuffle = True
         loader = data.DataLoader(data_split, batch_size, shuffle=shuffle, num_workers=4, drop_last=True)
