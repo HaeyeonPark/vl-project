@@ -139,7 +139,11 @@ def test(data_loader, network, args, unique_image, image_path_list):
                 
             fig.suptitle("\n".join(wrap(text_query, 60)))
             fig.tight_layout()
-            plt.savefig(os.path.join("/workspace/code/demo", str(i)+'.png'))
+            demo_path = os.path.join(args.model_path, 'demo')
+            if not os.path.exists(demo_path):
+                os.makedirs(demo_path)
+            plt.savefig(os.path.join(demo_path,str(i)+'.png'))
+            plt.clf()
 
 
     

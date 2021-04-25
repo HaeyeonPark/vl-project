@@ -8,9 +8,9 @@ def parse_args():
     # Directory
     parser.add_argument('--image_dir', type=str, default='/workspace/data', help='directory to store dataset')
     parser.add_argument('--anno_dir', type=str, default='/workspace/code/data/processed_data',help='directory to store anno file')
-    parser.add_argument('--model_path', type=str, default ='/workspace/code/model_data/exp5',help='directory to exp ')
-    parser.add_argument('--best_model_path', type=str, default ='/workspace/code/model_data/exp5/lr-0.00025-decay-0.9-batch-16/best_model.pth.tar',help='directory to exp ')
-    parser.add_argument('--log_dir', type=str, default='/workspace/code/logs/exp5', help='directory to store log')
+    parser.add_argument('--model_path', type=str, default ='/workspace/code/model_data/nafs',help='directory to exp ') ##
+    parser.add_argument('--best_model_path', type=str, default ='/workspace/code/model_data/nafs/best_model.pth.tar',help='directory to exp ')##
+    parser.add_argument('--log_dir', type=str, default='/workspace/code/logs/exp5', help='directory to store log') ##
 
     parser.add_argument('--feature_size', type=int, default=768)
     parser.add_argument('--cnn_dropout_keep', type=float, default=0.999)
@@ -25,7 +25,6 @@ def parse_args():
     parser.add_argument('--epoch_start', type=int, default=0)
     parser.add_argument('--checkpoint_dir', type=str, default='')
 
-    # for compare test
     # test type
     parser.add_argument('--test_type', type=str, default='basic') # combine 
     parser.add_argument('--CMPM', action='store_true',default=False)
