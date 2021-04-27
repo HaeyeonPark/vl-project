@@ -4,16 +4,19 @@ import shutil
 import time
 import logging
 import torch
+from torch.cuda import synchronize
 import torch.utils.data as data
 import torch.nn as nn
 import torchvision.transforms as transforms
 from utils.metric import AverageMeter, Loss, constraints_loss
 from test import test
 from config import data_config, network_config, lr_scheduler, get_image_unique
-from debug_config import config
+from train_config import config
 from tqdm import tqdm
 import sys
 from solver import WarmupMultiStepLR, RandomErasing
+
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from test import test
 import numpy as np
@@ -124,6 +127,7 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
 
         # compute gradient and do ADAM step
         optimizer.zero_grad()
+        loss = loss + 0 * sum(p.sum() for p in network.parameters())
         loss.backward()
         optimizer.step()
 
@@ -138,6 +142,16 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
 
 
 def main(args):
+    # ddp
+    args.is_master = args.local_rank == 0
+    print("is_master", args.is_master)
+    print("local_rank:", args.local_rank)
+    #device = torch.cuda.device(args.local_rank)
+
+    print("initialize process group...")
+    torch.distributed.init_process_group(backend='nccl', init_method='env://')
+    
+    torch.cuda.set_device(args.local_rank)
 
     # transform
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -170,8 +184,9 @@ def main(args):
     unique_image = get_image_unique(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)  
     
     # loss
-    compute_loss = Loss(args)
-    nn.DataParallel(compute_loss).cuda()
+    compute_loss = Loss(args).cuda()
+    compute_loss = DDP(compute_loss, device_ids=[args.local_rank], output_device=args.local_rank)
+    #nn.DataParallel(compute_loss).cuda()
 
     # network
     network, optimizer = network_config(args, 'train', compute_loss.parameters(), args.resume, args.model_path)

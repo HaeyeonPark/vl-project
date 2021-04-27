@@ -58,6 +58,11 @@ def parse_args():
 
     parser.add_argument('--nsave', type=str, default='')
 
+    # ddp
+    parser.add_argument('--distributed', action='store_true', default=False, help='whether to use DDP')
+    parser.add_argument('--local_rank', type=int, default=-1, help='local process rank')
+    parser.add_argument('--is_master', action='store_true', default=False, help='whether master')
+    
 
     # Default setting
     parser.add_argument('--gpus', type=str, default='0,1,2')

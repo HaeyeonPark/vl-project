@@ -13,13 +13,22 @@ FOCAL_TYPE=none
 
 lr=0.00025
 num_epochs=70
-batch_size=32
+batch_size=7
 lr_decay_ratio=0.9
 epochs_decay=30_40_50
 
 num_classes=11003
 
-python $BASE_ROOT/train.py \
+NUM_NODES=1
+NODE_RANK=0
+NPROC_PER_NODE=4
+
+python -m torch.distributed.launch \
+    --nnodes=$NUM_NODES \
+    --node_rank=$NODE_RANK \
+    --nproc_per_node=$NPROC_PER_NODE \
+    --master_port 29501 \
+    $BASE_ROOT/train.py \
     --CMPC \
     --CMPM \
     --COMBINE \

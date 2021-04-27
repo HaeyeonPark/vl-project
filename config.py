@@ -12,6 +12,10 @@ from datasets.pedes import CuhkPedes
 from models.model import Model
 from utils import directory
 
+from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -20,9 +24,11 @@ def data_config(image_dir, anno_dir, batch_size, split, max_length, transform, v
     
     data_split = CuhkPedes(image_dir, anno_dir, split, max_length, transform, \
                             vocab_path=vocab_path, min_word_count=min_word_count, cap_transform=cap_transform, rand_sample=rand_sample)
+    
+    ddp_sampler = DistributedSampler(data_split)
     if split == 'train':
-        shuffle = True
-        loader = data.DataLoader(data_split, batch_size, shuffle=shuffle, num_workers=4, drop_last=True)
+        shuffle = False
+        loader = data.DataLoader(data_split, batch_size, shuffle=shuffle, num_workers=4, drop_last=True, sampler=ddp_sampler)
     else:
         shuffle = False
         loader = data.DataLoader(data_split, batch_size, shuffle=shuffle, num_workers=4, drop_last=True)    
@@ -34,8 +40,9 @@ def get_image_unique(image_dir, anno_dir, batch_size, split, max_length, transfo
     return CuhkPedes(image_dir, anno_dir, split, max_length, transform).unique
 
 def network_config(args, split='train', param=None, resume=False, model_path=None, param2=None):
-    network = Model(args)
-    network = nn.DataParallel(network).cuda()
+    network = Model(args).cuda()
+    network = DDP(network, device_ids=[args.local_rank], output_device=args.local_rank)
+    #network = nn.DataParallel(network).cuda()
     cudnn.benchmark = True
     args.start_epoch = 0
 
