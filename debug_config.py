@@ -12,24 +12,24 @@ def parse_args():
     # Directory
     parser.add_argument('--image_dir', type=str,default='/workspace/data', help='directory to store dataset')
     parser.add_argument('--anno_dir', type=str, default='/workspace/code/data/processed_data',help='directory to store anno file')
-    parser.add_argument('--checkpoint_dir', type=str, default='/workspace/code/model_data/debug',help='directory to store checkpoint')
-    parser.add_argument('--log_dir', type=str, default='/workspace/code/logs/debug', help='directory to store log')
+    parser.add_argument('--checkpoint_dir', type=str, default='/workspace/code/model_data/bm',help='directory to store checkpoint')
+    parser.add_argument('--log_dir', type=str, default='/workspace/code/logs/bm', help='directory to store log')
     parser.add_argument('--model_path', type=str, default = '/workspace/code/pretrained/resnet50-19c8e357.pth', help='directory to pretrained model, whole model or just visual part')
 
     #data
-    parser.add_argument('--rand_sample', action='store_true', default=True, help='whether or not to randomly sample caption data')
+    parser.add_argument('--rand_sample', action='store_true', default=False, help='whether or not to randomly sample caption data')
 
     # Model setting
     parser.add_argument('--resume', action='store_true', default=False, help='whether or not to restore the pretrained whole model')
-    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--batch_size', type=int, default=7)
     parser.add_argument('--num_epochs', type=int, default=60)
     parser.add_argument('--ckpt_steps', type=int, default=5000, help='#steps to save checkpoint')
     parser.add_argument('--feature_size', type=int, default=768) # 768
     parser.add_argument('--CMPM', action='store_true',default=True)
     parser.add_argument('--CMPC', action='store_true', default=True)
     parser.add_argument('--CONT', action='store_true',default=False)
-    parser.add_argument('--COMBINE', action='store_true',default=False)
-    parser.add_argument('--PART_I2T', action='store_true',default=False)
+    parser.add_argument('--COMBINE', action='store_true',default=True)
+    parser.add_argument('--PART_I2T', action='store_true',default=True)
     parser.add_argument('--PART_CBT2I', action='store_true',default=False)
     parser.add_argument('--focal_type', type=str, default='none')
     parser.add_argument('--cnn_dropout_keep', type=float, default=0.999)
@@ -58,6 +58,11 @@ def parse_args():
 
     parser.add_argument('--nsave', type=str, default='')
 
+    #ddp
+    parser.add_argument('--distributed', action='store_true', default=False, help='whether to use DDP')
+    parser.add_argument('--local_rank', type=int, default=-1, help='local process rank')
+    parser.add_argument('--is_master', action='store_true', default=False, help='whether master') 
+
 
     # Default setting
     parser.add_argument('--gpus', type=str, default='0,1,2,3')
@@ -69,6 +74,8 @@ def parse_args():
 def config():
     print('##################################### debug config #############################################')
     args = parse_args()
+    if args.gpus == '0':
+        os.environ['CUDA_VISIBLE_DEVICES']=args.gpus
     dir_config(args)
     log_config(args,'train')
     return args

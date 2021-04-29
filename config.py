@@ -11,6 +11,7 @@ import logging
 from datasets.pedes import CuhkPedes
 from models.model import Model
 from utils import directory
+from utils.metric import Loss
 
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -20,18 +21,22 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def data_config(image_dir, anno_dir, batch_size, split, max_length, transform, vocab_path='', min_word_count=0, cap_transform=None, vis=False, rand_sample=False):
+def data_config(image_dir, anno_dir, batch_size, split, max_length, transform, vocab_path='', min_word_count=0, cap_transform=None, vis=False, rand_sample=False, dist=False):
     
     data_split = CuhkPedes(image_dir, anno_dir, split, max_length, transform, \
                             vocab_path=vocab_path, min_word_count=min_word_count, cap_transform=cap_transform, rand_sample=rand_sample)
     
-    ddp_sampler = DistributedSampler(data_split)
-    if split == 'train':
-        shuffle = False
-        loader = data.DataLoader(data_split, batch_size, shuffle=shuffle, num_workers=4, drop_last=True, sampler=ddp_sampler)
+    if dist == True:
+        ddp_sampler = DistributedSampler(data_split)
+        train_shuffle = False
     else:
-        shuffle = False
-        loader = data.DataLoader(data_split, batch_size, shuffle=shuffle, num_workers=4, drop_last=True)    
+        ddp_sampler = None
+        train_shuffle = True
+
+    if split == 'train':
+        loader = data.DataLoader(data_split, batch_size, shuffle=train_shuffle, num_workers=4, drop_last=True, sampler=ddp_sampler)
+    else:
+        loader = data.DataLoader(data_split, batch_size, shuffle=False, num_workers=4, drop_last=True, sampler=ddp_sampler)    
         if vis == True:
             return loader, data_split.test_images
     return loader
@@ -41,7 +46,8 @@ def get_image_unique(image_dir, anno_dir, batch_size, split, max_length, transfo
 
 def network_config(args, split='train', param=None, resume=False, model_path=None, param2=None):
     network = Model(args).cuda()
-    network = DDP(network, device_ids=[args.local_rank], output_device=args.local_rank)
+    if args.distributed:
+        network = DDP(network, device_ids=[args.local_rank], output_device=args.local_rank)
     #network = nn.DataParallel(network).cuda()
     cudnn.benchmark = True
     args.start_epoch = 0
@@ -51,7 +57,10 @@ def network_config(args, split='train', param=None, resume=False, model_path=Non
         directory.check_file(model_path, 'model_file')
         checkpoint = torch.load(model_path)
         args.start_epoch = checkpoint['epoch'] + 1
-        network.load_state_dict(checkpoint['network'])
+        if args.distributed:
+            network.module.load_state_dict(checkpoint['network'])
+        else:
+            network.load_state_dict(checkpoint['network'])
         print('==> Loading checkpoint "{}"'.format(model_path))
     else:
         # pretrained
@@ -61,7 +70,10 @@ def network_config(args, split='train', param=None, resume=False, model_path=Non
             # process keyword of pretrained model
             cnn_pretrained = torch.load(model_path)
             network_keys = network_dict.keys()
-            prefix = 'module.image_model.'
+            if args.distributed:
+                prefix = 'module.image_model.'
+            else:
+                prefix = 'image_model.'
             update_pretrained_dict = {}
             for k,v in cnn_pretrained.items():
                 if prefix+k in network_keys:
@@ -82,8 +94,12 @@ def network_config(args, split='train', param=None, resume=False, model_path=Non
     else:
         # optimizer
         # different params for different part
-        cnn_params = list(map(id, network.module.image_model.parameters()))
-        lang_params = list(map(id, network.module.language_model.parameters()))
+        if args.distributed:
+            cnn_params = list(map(id, network.module.image_model.parameters()))
+            lang_params = list(map(id, network.module.language_model.parameters()))
+        else:
+            cnn_params = list(map(id, network.image_model.parameters()))
+            lang_params = list(map(id, network.language_model.parameters()))
         cnn_params = cnn_params + lang_params
         other_params = filter(lambda p: id(p) not in cnn_params, network.parameters())
         other_params = list(other_params)
@@ -94,9 +110,14 @@ def network_config(args, split='train', param=None, resume=False, model_path=Non
         if param2 is not None:
             other_params.extend(list(param2))
 
-        param_groups = [{'params':other_params},
+        if args.distributed:
+            param_groups = [{'params':other_params},
             {'params':network.module.image_model.parameters(), 'weight_decay':args.wd, 'lr':args.lr/10},
             {'params':network.module.language_model.parameters(), 'lr':args.lr/10}]
+        else:
+            param_groups = [{'params':other_params},
+            {'params':network.image_model.parameters(), 'weight_decay':args.wd, 'lr':args.lr/10},
+            {'params':network.language_model.parameters(), 'lr':args.lr/10}]
         optimizer = torch.optim.Adam(
             param_groups,
             lr = args.lr, betas=(args.adam_alpha, args.adam_beta), eps=args.epsilon)
@@ -112,6 +133,19 @@ def network_config(args, split='train', param=None, resume=False, model_path=Non
     torch.cuda.manual_seed_all(manualSeed)
 
     return network, optimizer
+
+def loss_config(args):
+    compute_loss = Loss(args).cuda()
+    if args.distributed:
+        compute_loss = DDP(compute_loss, device_ids=[args.local_rank], output_device=args.local_rank)
+    if args.resume:
+        checkpoint = torch.load(args.model_path) 
+        if args.distributed:
+            compute_loss.module.load_state_dict(checkpoint['loss'])
+        else:
+            compute_loss.load_state_dict(checkpoint['loss'])
+    return compute_loss
+
 
 
 def log_config(args, ca):
@@ -133,7 +167,6 @@ def dir_config(args):
     directory.makedir(args.log_dir)
     # save checkpoint
     directory.makedir(args.checkpoint_dir)
-    directory.makedir(os.path.join(args.checkpoint_dir,'model_best'))
 
 
 def lr_scheduler(optimizer, args):

@@ -10,13 +10,15 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 from utils.metric import AverageMeter, Loss, constraints_loss
 from test import test
-from config import data_config, network_config, lr_scheduler, get_image_unique
-from train_config import config
+from config import data_config, network_config, lr_scheduler, get_image_unique, loss_config
+from debug_config import config
 from tqdm import tqdm
 import sys
 from solver import WarmupMultiStepLR, RandomErasing
 
 from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist 
+
 
 from test import test
 import numpy as np
@@ -68,8 +70,12 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
                 padding = ["[PAD]" for j in range(pad_length)]
                 sep_captions = sep_captions + c + padding
 
-        tokens, segments, input_masks, caption_length = network.module.language_model.pre_process(captions)
-        sep_tokens, sep_segments, sep_input_masks, sep_caption_length = network.module.language_model.pre_process(sep_captions)
+        if isinstance(network, DDP):
+            tokens, segments, input_masks, caption_length = network.module.language_model.pre_process(captions)
+            sep_tokens, sep_segments, sep_input_masks, sep_caption_length = network.module.language_model.pre_process(sep_captions)
+        else:        
+            tokens, segments, input_masks, caption_length = network.language_model.pre_process(captions)
+            sep_tokens, sep_segments, sep_input_masks, sep_caption_length = network.language_model.pre_process(sep_captions)
 
 
         ##
@@ -92,7 +98,7 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         #random.shuffle(p3)
 
         # network
-        global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='train')
+        global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3)
 
         # loss
         #cmpm_loss, cmpc_loss, cont_loss, loss, image_precision, text_precision, pos_avg_sim, neg_arg_sim, local_pos_avg_sim, local_neg_avg_sim = compute_loss(
@@ -100,7 +106,8 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         loss, result_dict = compute_loss(
             args.num_epochs, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
 
-        if step % 20 == 0:
+        # print log
+        if step % 20 == 0 and args.local_rank == 0:
             print('epoch:{}, step:{}'.format(epoch, step), end=' ') 
             for k in result_dict:
                 if k not in ['each_part_i2t_loss', 'each_part_t2i_loss']:
@@ -143,15 +150,13 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
 
 def main(args):
     # ddp
-    args.is_master = args.local_rank == 0
-    print("is_master", args.is_master)
-    print("local_rank:", args.local_rank)
-    #device = torch.cuda.device(args.local_rank)
+    args.distributed = (torch.cuda.device_count()>1)
+    if args.distributed:
+        args.is_master = args.local_rank == 0
 
-    print("initialize process group...")
-    torch.distributed.init_process_group(backend='nccl', init_method='env://')
-    
-    torch.cuda.set_device(args.local_rank)
+        print("initialize process group...")
+        torch.distributed.init_process_group(backend='nccl', init_method='env://')
+        torch.cuda.set_device(args.local_rank)
 
     # transform
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -177,16 +182,12 @@ def main(args):
     cap_transform = None
 
     # data
-    train_loader = data_config(args.image_dir, args.anno_dir, args.batch_size, 'train', 100, train_transform, cap_transform=cap_transform, rand_sample=args.rand_sample)
-
-    # why test dataloader 64 no error??
+    train_loader = data_config(args.image_dir, args.anno_dir, args.batch_size, 'train', 100, train_transform, cap_transform=cap_transform, rand_sample=args.rand_sample, dist=args.distributed)
     test_loader = data_config(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)
     unique_image = get_image_unique(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)  
     
     # loss
-    compute_loss = Loss(args).cuda()
-    compute_loss = DDP(compute_loss, device_ids=[args.local_rank], output_device=args.local_rank)
-    #nn.DataParallel(compute_loss).cuda()
+    compute_loss = loss_config(args)
 
     # network
     network, optimizer = network_config(args, 'train', compute_loss.parameters(), args.resume, args.model_path)
@@ -199,38 +200,44 @@ def main(args):
     best_epoch = 0
     for epoch in range(args.num_epochs - args.start_epoch):
         network.train()
-        # train for one epoch
+        # let all processes sync up before starting with a new epoch of training
         train_loss, train_time, image_precision, text_precision = train(args.start_epoch + epoch, train_loader, network, optimizer, compute_loss, args)
+
+        if args.local_rank <=0:
+            print('Train done for epoch-{}'.format(args.start_epoch + epoch))
+            logging.info('Epoch:  [{}|{}], train_time: {:.3f}, train_loss: {:.3f}'.format(args.start_epoch + epoch, args.num_epochs, train_time, train_loss))
+            logging.info('image_precision: {:.3f}, text_precision: {:.3f}'.format(image_precision, text_precision))
+            for param in optimizer.param_groups:
+                print('lr:{}'.format(param['lr']))
+        scheduler.step()
 
         # evaluate on validation set
         is_best = False
-        print('Train done for epoch-{}'.format(args.start_epoch + epoch))
-
-        logging.info('Epoch:  [{}|{}], train_time: {:.3f}, train_loss: {:.3f}'.format(args.start_epoch + epoch, args.num_epochs, train_time, train_loss))
-        logging.info('image_precision: {:.3f}, text_precision: {:.3f}'.format(image_precision, text_precision))
-        scheduler.step()
+        if args.local_rank<=0:
         
-        for param in optimizer.param_groups:
-            print('lr:{}'.format(param['lr']))
-
-        if epoch >= 0:
-            ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
-        
-            state = {'network': network.state_dict(), 'optimizer': optimizer.state_dict(), 'W': compute_loss.W, 'epoch': args.start_epoch + epoch, 'cb_layer.weight': compute_loss.cb_layer.weight, 'cb_layer.bias': compute_loss.cb_layer.bias}
+            if isinstance(network, DDP):    
+                ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network.module, args, unique_image)
+                state = {'network': network.module.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': args.start_epoch + epoch, 'loss': compute_loss.module.state_dict() }
+            else:
+                ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
+                state = {'network': network.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': args.start_epoch + epoch, 'loss': compute_loss.state_dict() }
             
             if ac_top1_t2i > ac_t2i_top1_best:
+                #save best model
                 best_epoch = epoch
                 ac_t2i_top1_best = ac_top1_t2i
                 is_best=True
                 if epoch >=30: # 
                     save_checkpoint(state, epoch, args.checkpoint_dir, is_best)
             else:
-                if epoch %10 ==0 and epoch>=30:
+                #save latest model 
+                if epoch %10 ==0 and epoch>=20:
                     save_checkpoint(state, epoch, args.checkpoint_dir, is_best)
             
             logging.info('epoch:{}'.format(epoch))
             logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
             ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
+        dist.barrier()
        
 
     logging.info('Best epoch:{}'.format(best_epoch))

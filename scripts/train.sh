@@ -6,16 +6,16 @@ IMAGE_DIR=/workspace/data
 BASE_ROOT=/workspace/code
 ANNO_DIR=$BASE_ROOT/data/processed_data
 
-CKPT_DIR=$BASE_ROOT/model_data/exp13
-LOG_DIR=$BASE_ROOT/logs/exp13
+CKPT_DIR=$BASE_ROOT/model_data/exp99
+LOG_DIR=$BASE_ROOT/logs/exp99
 PRETRAINED_PATH=$BASE_ROOT/pretrained/resnet50-19c8e357.pth
 FOCAL_TYPE=none
 
-lr=0.00025
-num_epochs=70
+lr=0.0005
+num_epochs=60
 batch_size=7
 lr_decay_ratio=0.9
-epochs_decay=30_40_50
+epochs_decay=20_30_40
 
 num_classes=11003
 

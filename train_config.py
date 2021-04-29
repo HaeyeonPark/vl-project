@@ -65,7 +65,7 @@ def parse_args():
     
 
     # Default setting
-    parser.add_argument('--gpus', type=str, default='0,1,2')
+    parser.add_argument('--gpus', type=str, default='0,1,2,3')
 
     args = parser.parse_args()
     return args
