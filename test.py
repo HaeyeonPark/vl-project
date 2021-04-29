@@ -14,11 +14,29 @@ import math
 import re
 import glob
 
+import torch.distributed as dist 
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+
 def test(data_loader, network, args, unique_image):
     batch_time = AverageMeter()
 
     # switch to evaluate mode
     network.eval()
+    ''' 
+    global_img_feat_bank = []
+    global_text_feat_bank = []
+
+    local_img_query_bank = []
+    local_img_value_bank = []
+
+    local_text_key_bank = []
+    local_text_value_bank = []
+
+    labels_bank_i = []
+    labels_bank_t = []
+    length_bank = []
+    '''
     max_size = 64 * len(data_loader)
     global_img_feat_bank = torch.zeros((max_size, args.feature_size)).cuda()
     global_text_feat_bank = torch.zeros((max_size*2, args.feature_size)).cuda()
@@ -53,8 +71,12 @@ def test(data_loader, network, args, unique_image):
                     padding = ["[PAD]" for j in range(pad_length)]
                     sep_captions = sep_captions + c + padding   
 
-            tokens, segments, input_masks, caption_length = network.module.language_model.pre_process(captions)
-            sep_tokens, sep_segments, sep_input_masks, sep_caption_length = network.module.language_model.pre_process(sep_captions)
+            if isinstance(network, DDP):
+                tokens, segments, input_masks, caption_length = network.module.language_model.pre_process(captions)
+                sep_tokens, sep_segments, sep_input_masks, sep_caption_length = network.module.language_model.pre_process(sep_captions)
+            else:
+                tokens, segments, input_masks, caption_length = network.language_model.pre_process(captions)
+                sep_tokens, sep_segments, sep_input_masks, sep_caption_length = network.language_model.pre_process(sep_captions)
 
             tokens = tokens.cuda()
             segments = segments.cuda()
@@ -73,8 +95,23 @@ def test(data_loader, network, args, unique_image):
             p2 = [i for i in range(args.part2)]
             p3 = [i for i in range(args.part3)]
 
-            global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='train')
+            global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3)
+            '''
+            global_img_feat_bank.append(global_img_feat)
+            global_text_feat_bank.append(global_text_feat)
 
+            local_img_query_bank.append(local_img_query)
+            local_img_value_bank.append(local_img_value) 
+
+            local_text_key_bank.append(local_text_key)
+            local_text_value_bank.append(local_text_value) 
+
+            labels_bank_i.append(labels)
+            labels_bank_t.append(torch.cat((labels, labels))) 
+            length_bank.append(caption_length) 
+            batch_time.update(time.time() - end)
+            end = time.time()
+            '''
             global_img_feat_bank[index_i: index_i + interval_i] = global_img_feat
             global_text_feat_bank[index_t: index_t + interval_t] = global_text_feat
             local_img_query_bank[index_i: index_i + interval_i, :, :] = local_img_query
@@ -89,6 +126,18 @@ def test(data_loader, network, args, unique_image):
             index_i = index_i + interval_i
             index_t = index_t + interval_t
 
+        '''
+        global_img_feat_bank = torch.cat(global_img_feat_bank, dim=0)
+        global_text_feat_bank = torch.cat(global_text_feat_bank, dim=0)
+        local_img_query_bank = torch.cat(local_img_query_bank, dim=0)
+        local_img_value_bank = torch.cat(local_img_value_bank, dim=0)
+        local_text_key_bank = torch.cat(local_text_key_bank, dim=0)
+        local_text_value_bank = torch.cat(local_text_value_bank, dim=0)
+        labels_bank_i = torch.cat(labels_bank_i, dim=0)
+        labels_bank_t = torch.cat(labels_bank_t, dim=0)
+        length_bank = torch.cat(length_bank, dim=0)
+        #unique_image = torch.tensor(unique_image) == 1
+        '''
         global_img_feat_bank = global_img_feat_bank[:index_i]
         global_text_feat_bank = global_text_feat_bank[:index_t]
         local_img_query_bank = local_img_query_bank[:index_i]
@@ -100,15 +149,43 @@ def test(data_loader, network, args, unique_image):
         length_bank = length_bank[:index_t]
         unique_image = torch.tensor(unique_image) == 1
 
-        #global_result, local_result, result = compute_topk(global_img_feat_bank[unique_image], local_img_query_bank[unique_image], local_img_value_bank[unique_image], global_text_feat_bank, local_text_key_bank,
-        #                                                local_text_value_bank, length_bank, labels_bank[unique_image], labels_bank, args, [1, 5, 10], True)
-        global_result, local_result, result = compute_topk(global_img_feat_bank, local_img_query_bank, local_img_value_bank, global_text_feat_bank, local_text_key_bank,
-                                                        local_text_value_bank, length_bank, labels_bank_i, labels_bank_t, args, [1, 5, 10], True,False)
+        '''
+        if args.distributed:
+            num_dev = torch.cuda.device_count()
 
+            #######
+            global_img_feat_bank_l = [torch.zeros_like(global_img_feat_bank) for k in range(num_dev)]
+            #print('***', args.local_rank, global_img_feat_bank[0][0])
+            dist.all_gather(global_img_feat_bank_l, global_img_feat_bank)
+            global_img_feat_bank_l = torch.cat(global_img_feat_bank_l, dim=0)
+            print(global_img_feat_bank_l[0][0], global_img_feat_bank_l[1000][0])
+
+            labels_bank_i_l = [torch.zeros_like(labels_bank_i) for k in range(num_dev)]
+            print('@@@@', args.local_rank, ':', labels_bank_i[0])
+            dist.all_gather(labels_bank_i_l, labels_bank_i)
+            labels_bank_i_l = torch.cat(labels_bank_i_l, dim=0)
+            print('gather: ', labels_bank_i_l[0:5])
+            print('gather: ', labels_bank_i_l[768:768+5])
+            print('gather: ', labels_bank_i_l[1536:1536+5])
+            print('gather: ', labels_bank_i_l[2304:2304+5])
+
+            local_text_key_bank_l = [torch.zeros_like(local_text_key_bank) for k in range(num_dev) ]
+            print('!!!', args.local_rank, local_text_key_bank[0][0][0])
+            dist.all_gather(local_text_key_bank_l, local_text_key_bank)
+            local_text_key_bank_l = torch.cat(local_text_key_bank_l, dim=0)
+
+            global_result, local_result, result = compute_topk(global_img_feat_bank, local_img_query_bank, local_img_value_bank, global_text_feat_bank, local_text_key_bank,
+                                                            local_text_value_bank, length_bank, labels_bank_i, labels_bank_t, args, [1, 5, 10], True,False)
+        '''
+        global_result, local_result, result = compute_topk(global_img_feat_bank, local_img_query_bank, local_img_value_bank, global_text_feat_bank, local_text_key_bank,
+                                                            local_text_value_bank, length_bank, labels_bank_i, labels_bank_t, args, [1, 5, 10], True,False)
         ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i, ac_top10_t2i = result
     
         return ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, batch_time.avg
 
+
+
+        
 
 
 def main(args):
@@ -139,62 +216,7 @@ def main(args):
 
 
 
-    '''
-    i2t_models = os.listdir(args.model_path)
-    i2t_models.sort()
-    model_list = []
-    for i2t_model in i2t_models:
-        if i2t_model.split('.')[0] != "model_best":
-            model_list.append(int(i2t_model.split('.')[0]))
-        model_list.sort()
-    '''
-   
-    ''' for debug
-    
-    logging.info('Testing on dataset: {}'.format(args.anno_dir))
-    network, _ = network_config(args, 'test')
-
-    ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
-    logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
-            ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
-    
-    '''
-    '''
-    ac_i2t_top1_best = 0.0
-    ac_i2t_top10_best = 0.0
-    ac_t2i_top1_best = 0.0
-    ac_t2i_top10_best = 0.0
-    ac_t2i_top5_best = 0.0
-    ac_i2t_top5_best = 0.0
-    for i2t_model in model_list:
-        model_file = os.path.join(args.model_path, str(i2t_model) + '.pth.tar')
-        if os.path.isdir(model_file):
-            continue
-        epoch = i2t_model
-        if int(epoch) < args.epoch_start:
-            continue
-        network, _ = network_config(args, 'test', None, True)
-
-        ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
-        if ac_top1_t2i > ac_t2i_top1_best:
-            ac_i2t_top1_best = ac_top1_i2t
-            ac_i2t_top5_best = ac_top5_i2t
-            ac_i2t_top10_best = ac_top10_i2t
-
-            ac_t2i_top1_best = ac_top1_t2i
-            ac_t2i_top5_best = ac_top5_t2i
-            ac_t2i_top10_best = ac_top10_t2i
-            dst_best = os.path.join(args.checkpoint_dir, 'model_best', str(epoch)) + '.pth.tar'
-        
-
-        logging.info('epoch:{}'.format(epoch))
-        logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
-            ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
-    logging.info('t2i_top1_best: {:.3f}, t2i_top5_best: {:.3f}, t2i_top10_best: {:.3f}, i2t_top1_best: {:.3f}, i2t_top5_best: {:.3f}, i2t_top10_best: {:.3f}'.format(
-        ac_t2i_top1_best, ac_t2i_top5_best, ac_t2i_top10_best, ac_i2t_top1_best, ac_i2t_top5_best, ac_i2t_top10_best))
-    logging.info(args.model_path)
-    logging.info(args.log_dir)
-    '''
+ 
 
 if __name__ == '__main__':
     args = config()

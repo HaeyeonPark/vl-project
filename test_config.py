@@ -1,6 +1,7 @@
 import argparse
 from config import log_config 
 import logging
+import os
 
 
 def parse_args():
@@ -18,10 +19,10 @@ def parse_args():
     parser.add_argument('--part3', type=int, default=3, help='number of stripes splited in region branch')
     parser.add_argument('--focal_type', type=str, default=None)
     parser.add_argument('--lambda_softmax', type=float, default=20.0, help='scale constant')
-    parser.add_argument('--reranking', action='store_true', default=True, help='whether reranking during testing')
+    parser.add_argument('--reranking', action='store_true', default=False, help='whether reranking during testing')
     
     # Default setting
-    parser.add_argument('--gpus', type=str, default='0,1')
+    parser.add_argument('--gpus', type=str, default='0')
     parser.add_argument('--epoch_start', type=int, default=0)
     parser.add_argument('--checkpoint_dir', type=str, default='')
 
@@ -39,6 +40,8 @@ def parse_args():
 
     parser.add_argument('--resume', action='store_true', default=True, help='whether or not to restore the pretrained whole model')
 
+    #ddp
+    parser.add_argument('--distributed', action='store_true', default=False, help='whether to use DDP')
 
 
     args = parser.parse_args()
@@ -48,5 +51,6 @@ def parse_args():
 
 def config():
     args = parse_args()
+    os.environ['CUDA_VISIBLE_DEVICES']=args.gpus
     log_config(args, 'test')
     return args
