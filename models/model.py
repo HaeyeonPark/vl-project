@@ -67,7 +67,7 @@ class Model(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
 
-    def forward(self, images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2=None, p3=None, object=None, attribute=None, stage=''):
+    def forward(self, images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2=None, p3=None, object=None, attribute=None):
 
         # text_features: (batchsize*4) * 100 * 768 
         text_features = self.language_model(sep_tokens, sep_segments, sep_input_masks)
