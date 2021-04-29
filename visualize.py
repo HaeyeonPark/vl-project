@@ -7,7 +7,7 @@ import gc
 import torch
 import torchvision.transforms as transforms
 from utils.metric import AverageMeter, compute_topk
-from test_config import config
+from vis_config import config
 from config import data_config, network_config, get_image_unique
 from textwrap import wrap
 from PIL import Image
@@ -18,7 +18,7 @@ import glob
 
 import matplotlib.pyplot as plt
 
-def test(data_loader, network, args, unique_image, image_path_list):
+def visualize(data_loader, network, args, unique_image, image_path_list):
     batch_time = AverageMeter()
 
     # switch to evaluate mode
@@ -58,8 +58,8 @@ def test(data_loader, network, args, unique_image, image_path_list):
                     padding = ["[PAD]" for j in range(pad_length)]
                     sep_captions = sep_captions + c + padding   
 
-            tokens, segments, input_masks, caption_length = network.module.language_model.pre_process(captions)
-            sep_tokens, sep_segments, sep_input_masks, sep_caption_length = network.module.language_model.pre_process(sep_captions)
+            tokens, segments, input_masks, caption_length = network.language_model.pre_process(captions)
+            sep_tokens, sep_segments, sep_input_masks, sep_caption_length = network.language_model.pre_process(sep_captions)
 
             tokens = tokens.cuda()
             segments = segments.cuda()
@@ -78,7 +78,7 @@ def test(data_loader, network, args, unique_image, image_path_list):
             p2 = [i for i in range(args.part2)]
             p3 = [i for i in range(args.part3)]
 
-            global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='train')
+            global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3)
 
             global_img_feat_bank[index_i: index_i + interval_i] = global_img_feat
             global_text_feat_bank[index_t: index_t + interval_t] = global_text_feat
@@ -109,7 +109,7 @@ def test(data_loader, network, args, unique_image, image_path_list):
         #                                                local_text_value_bank, length_bank, labels_bank[unique_image], labels_bank, args, [1, 5, 10], True)
         t2i_index, correct = compute_topk(global_img_feat_bank, local_img_query_bank, local_img_value_bank, global_text_feat_bank, local_text_key_bank,
                                                         local_text_value_bank, length_bank, labels_bank_i, labels_bank_t, args, [1, 5, 10], True, return_index=True)
-
+        # save figure
         n = t2i_index.size(0)
         for i in range(0, n, 20):
             text_query = caption_list[i]
@@ -143,7 +143,7 @@ def test(data_loader, network, args, unique_image, image_path_list):
             if not os.path.exists(demo_path):
                 os.makedirs(demo_path)
             plt.savefig(os.path.join(demo_path,str(i)+'.png'))
-            plt.clf()
+            plt.close()
 
 
     
@@ -174,68 +174,12 @@ def main(args):
     logging.info(model_path)
     network, _ = network_config(args, 'test', param=None, resume=False, model_path=model_path, param2=None)
     #ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image, image_path_list)
-    test(test_loader, network, args, unique_image, image_path_list)
+    visualize(test_loader, network, args, unique_image, image_path_list)
     #logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
     #       ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
 
 
 
-    '''
-    i2t_models = os.listdir(args.model_path)
-    i2t_models.sort()
-    model_list = []
-    for i2t_model in i2t_models:
-        if i2t_model.split('.')[0] != "model_best":
-            model_list.append(int(i2t_model.split('.')[0]))
-        model_list.sort()
-    '''
-   
-    ''' for debug
-    
-    logging.info('Testing on dataset: {}'.format(args.anno_dir))
-    network, _ = network_config(args, 'test')
-
-    ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
-    logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
-            ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
-    
-    '''
-    '''
-    ac_i2t_top1_best = 0.0
-    ac_i2t_top10_best = 0.0
-    ac_t2i_top1_best = 0.0
-    ac_t2i_top10_best = 0.0
-    ac_t2i_top5_best = 0.0
-    ac_i2t_top5_best = 0.0
-    for i2t_model in model_list:
-        model_file = os.path.join(args.model_path, str(i2t_model) + '.pth.tar')
-        if os.path.isdir(model_file):
-            continue
-        epoch = i2t_model
-        if int(epoch) < args.epoch_start:
-            continue
-        network, _ = network_config(args, 'test', None, True)
-
-        ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
-        if ac_top1_t2i > ac_t2i_top1_best:
-            ac_i2t_top1_best = ac_top1_i2t
-            ac_i2t_top5_best = ac_top5_i2t
-            ac_i2t_top10_best = ac_top10_i2t
-
-            ac_t2i_top1_best = ac_top1_t2i
-            ac_t2i_top5_best = ac_top5_t2i
-            ac_t2i_top10_best = ac_top10_t2i
-            dst_best = os.path.join(args.checkpoint_dir, 'model_best', str(epoch)) + '.pth.tar'
-        
-
-        logging.info('epoch:{}'.format(epoch))
-        logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
-            ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
-    logging.info('t2i_top1_best: {:.3f}, t2i_top5_best: {:.3f}, t2i_top10_best: {:.3f}, i2t_top1_best: {:.3f}, i2t_top5_best: {:.3f}, i2t_top10_best: {:.3f}'.format(
-        ac_t2i_top1_best, ac_t2i_top5_best, ac_t2i_top10_best, ac_i2t_top1_best, ac_i2t_top5_best, ac_i2t_top10_best))
-    logging.info(args.model_path)
-    logging.info(args.log_dir)
-    '''
 
 if __name__ == '__main__':
     args = config()
