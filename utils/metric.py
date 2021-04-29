@@ -208,14 +208,7 @@ class Loss(nn.Module):
         self.num_classes = args.num_classes
         self.cb_layer = nn.Linear(args.feature_size*2, args.feature_size)
         self.W = Parameter(torch.randn(args.feature_size, args.num_classes))
-        if args.resume:
-            checkpoint = torch.load(args.best_model_path)
-            self.W = Parameter(checkpoint['W'])
-            self.cb_layer.weight = Parameter(checkpoint['cb_layer.weight'])
-            self.cb_layer.bias = Parameter(checkpoint['cb_layer.bias'])
-            print('=========> Loading in parameter W, combine layer from pretrained models')
-        else:
-            self.init_weight()
+        self.init_weight()
 
     def init_weight(self):
         nn.init.xavier_uniform_(self.W.data, gain=1)
