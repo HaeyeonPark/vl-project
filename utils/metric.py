@@ -568,6 +568,7 @@ class Loss(nn.Module):
             result_dict['cmpm_loss'] = cmpm_loss.item()
             result_dict['pos_avg_sim'] = pos_avg_sim
             result_dict['neg_avg_sim'] = neg_avg_sim
+            
         if self.CMPC:
             cmpc_loss, image_precision, text_precision = self.compute_cmpc_loss(global_img_feat,
                                                                                 global_text_feat, labels)
@@ -576,8 +577,11 @@ class Loss(nn.Module):
             result_dict['image_precision'] = image_precision
             result_dict['text_precision'] = text_precision
 
-        weiTexts = self.compute_weiTexts(local_img_query, local_text_key, local_text_value, text_length, self.args)
-        combineTexts = self.compute_combineTexts(weiTexts)
+        if self.COMBINE or self.PART_I2T or self.PART_CBT2I or self.CONT:
+            weiTexts = self.compute_weiTexts(local_img_query, local_text_key, local_text_value, text_length, self.args)
+            if self.COMBINE or self.PART_I2T or self.PART_CBT2I:
+                combineTexts = self.compute_combineTexts(weiTexts)
+        
         if self.COMBINE:
             # image based attended weighted vectors 16 * 32 * 6 * 768
             combine_loss, cb_pos_avg_sim, cb_neg_avg_sim = self.compute_combine_loss(combineTexts, local_img_value, labels, self.args.lambda_softmax, self.args.epsilon)
@@ -597,19 +601,20 @@ class Loss(nn.Module):
 
             beta = epoch / total_epoch
             part_result['part_loss'] *= self.args.lambda_combine * min(1, exp(beta) + beta -1)
-            loss += part_result['part_loss']
+            loss += part_result['part_loss'] 
             part_result['part_loss'] = part_result['part_loss'].item()
             result_dict.update(part_result)
 
         if self.CONT:
             cont_loss, local_pos_avg_sim, local_neg_avg_sim = self.contrastive_loss(local_img_value, weiTexts, labels)
             cont_loss = cont_loss * self.args.lambda_cont
-            loss += cont_loss
+            loss += cont_loss 
             result_dict['cont_loss'] = cont_loss.item()
             result_dict['local_pos_avg_sim'] = local_pos_avg_sim
             result_dict['local_neg_avg_sim'] = local_neg_avg_sim
 
         #return cmpm_loss.item(), cmpc_loss.item(), combine_loss.item(), part_loss.item(), loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, each_part_i2t, each_part_t2i
+        
         return loss, result_dict
 
 

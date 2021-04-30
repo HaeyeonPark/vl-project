@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 from utils.metric import AverageMeter, Loss, constraints_loss
 from test import test
 from config import data_config, network_config, lr_scheduler, get_image_unique, loss_config
-from debug_config import config
+from train_config import config
 from tqdm import tqdm
 import sys
 from solver import WarmupMultiStepLR, RandomErasing
@@ -107,7 +107,7 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
             args.num_epochs, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
 
         # print log
-        if step % 20 == 0 and args.local_rank == 0:
+        if step % 20 == 0 and args.local_rank <= 0:
             print('epoch:{}, step:{}'.format(epoch, step), end=' ') 
             for k in result_dict:
                 if k not in ['each_part_i2t_loss', 'each_part_t2i_loss']:
@@ -143,8 +143,9 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         end = time.time()
         
         train_loss.update(loss.item(), images.shape[0])
-        image_pre.update(result_dict['image_precision'], images.shape[0])
-        text_pre.update(result_dict['text_precision'], images.shape[0])
+        if args.CMPC:
+            image_pre.update(result_dict['image_precision'], images.shape[0])
+            text_pre.update(result_dict['text_precision'], images.shape[0])
     return train_loss.avg, batch_time.avg, image_pre.avg, text_pre.avg
 
 
@@ -214,7 +215,6 @@ def main(args):
         # evaluate on validation set
         is_best = False
         if args.local_rank<=0:
-        
             if isinstance(network, DDP):    
                 ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network.module, args, unique_image)
                 state = {'network': network.module.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': args.start_epoch + epoch, 'loss': compute_loss.module.state_dict() }
@@ -237,7 +237,8 @@ def main(args):
             logging.info('epoch:{}'.format(epoch))
             logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
             ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
-        dist.barrier()
+        if args.distributed:
+            dist.barrier()
        
 
     logging.info('Best epoch:{}'.format(best_epoch))
