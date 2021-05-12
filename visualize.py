@@ -7,7 +7,7 @@ import gc
 import torch
 import torchvision.transforms as transforms
 from utils.metric import AverageMeter, compute_topk
-from test_config import config
+from vis_config import config
 from config import data_config, network_config, get_image_unique
 from textwrap import wrap
 from PIL import Image
@@ -18,7 +18,7 @@ import glob
 
 import matplotlib.pyplot as plt
 
-def test(data_loader, network, args, unique_image, image_path_list):
+def visualize(data_loader, network, args, unique_image, image_path_list):
     batch_time = AverageMeter()
 
     # switch to evaluate mode
@@ -143,7 +143,7 @@ def test(data_loader, network, args, unique_image, image_path_list):
             if not os.path.exists(demo_path):
                 os.makedirs(demo_path)
             plt.savefig(os.path.join(demo_path,str(i)+'.png'))
-            plt.clf()
+            plt.close()
 
 
     
@@ -174,68 +174,11 @@ def main(args):
     logging.info(model_path)
     network, _ = network_config(args, 'test', param=None, resume=False, model_path=model_path, param2=None)
     #ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image, image_path_list)
-    test(test_loader, network, args, unique_image, image_path_list)
+    visualize(test_loader, network, args, unique_image, image_path_list)
     #logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
     #       ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
 
 
-
-    '''
-    i2t_models = os.listdir(args.model_path)
-    i2t_models.sort()
-    model_list = []
-    for i2t_model in i2t_models:
-        if i2t_model.split('.')[0] != "model_best":
-            model_list.append(int(i2t_model.split('.')[0]))
-        model_list.sort()
-    '''
-   
-    ''' for debug
-    
-    logging.info('Testing on dataset: {}'.format(args.anno_dir))
-    network, _ = network_config(args, 'test')
-
-    ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
-    logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
-            ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
-    
-    '''
-    '''
-    ac_i2t_top1_best = 0.0
-    ac_i2t_top10_best = 0.0
-    ac_t2i_top1_best = 0.0
-    ac_t2i_top10_best = 0.0
-    ac_t2i_top5_best = 0.0
-    ac_i2t_top5_best = 0.0
-    for i2t_model in model_list:
-        model_file = os.path.join(args.model_path, str(i2t_model) + '.pth.tar')
-        if os.path.isdir(model_file):
-            continue
-        epoch = i2t_model
-        if int(epoch) < args.epoch_start:
-            continue
-        network, _ = network_config(args, 'test', None, True)
-
-        ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
-        if ac_top1_t2i > ac_t2i_top1_best:
-            ac_i2t_top1_best = ac_top1_i2t
-            ac_i2t_top5_best = ac_top5_i2t
-            ac_i2t_top10_best = ac_top10_i2t
-
-            ac_t2i_top1_best = ac_top1_t2i
-            ac_t2i_top5_best = ac_top5_t2i
-            ac_t2i_top10_best = ac_top10_t2i
-            dst_best = os.path.join(args.checkpoint_dir, 'model_best', str(epoch)) + '.pth.tar'
-        
-
-        logging.info('epoch:{}'.format(epoch))
-        logging.info('top1_t2i: {:.3f}, top5_t2i: {:.3f}, top10_t2i: {:.3f}, top1_i2t: {:.3f}, top5_i2t: {:.3f}, top10_i2t: {:.3f}'.format(
-            ac_top1_t2i, ac_top5_t2i, ac_top10_t2i, ac_top1_i2t, ac_top5_i2t, ac_top10_i2t))
-    logging.info('t2i_top1_best: {:.3f}, t2i_top5_best: {:.3f}, t2i_top10_best: {:.3f}, i2t_top1_best: {:.3f}, i2t_top5_best: {:.3f}, i2t_top10_best: {:.3f}'.format(
-        ac_t2i_top1_best, ac_t2i_top5_best, ac_t2i_top10_best, ac_i2t_top1_best, ac_i2t_top5_best, ac_i2t_top10_best))
-    logging.info(args.model_path)
-    logging.info(args.log_dir)
-    '''
 
 if __name__ == '__main__':
     args = config()

@@ -12,8 +12,8 @@ def parse_args():
     # Directory
     parser.add_argument('--image_dir', type=str,default='/workspace/data', help='directory to store dataset')
     parser.add_argument('--anno_dir', type=str, default='/workspace/code/data/processed_data',help='directory to store anno file')
-    parser.add_argument('--checkpoint_dir', type=str, default='/workspace/code/model_data',help='directory to store checkpoint')
-    parser.add_argument('--log_dir', type=str, default='/workspace/code/logs', help='directory to store log')
+    parser.add_argument('--checkpoint_dir', type=str, default='/workspace/code/model_data/tmp',help='directory to store checkpoint')
+    parser.add_argument('--log_dir', type=str, default='/workspace/code/logs/tmp', help='directory to store log')
     parser.add_argument('--model_path', type=str, default = '/workspace/code/pretrained/resnet50-19c8e357.pth', help='directory to pretrained model, whole model or just visual part')
 
     # data 
@@ -21,7 +21,7 @@ def parse_args():
 
     # Model setting
     parser.add_argument('--resume', action='store_true', default=False, help='whether or not to restore the pretrained whole model')
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--batch_size', type=int, default=7)
     parser.add_argument('--num_epochs', type=int, default=60)
     parser.add_argument('--ckpt_steps', type=int, default=5000, help='#steps to save checkpoint')
     parser.add_argument('--feature_size', type=int, default=768) # 768

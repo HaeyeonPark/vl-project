@@ -564,7 +564,8 @@ class Loss(nn.Module):
         part_result['part_loss'] = part_loss 
         return part_result
 
-    def forward(self, total_epoch, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, text_length,
+    ##def forward(self, total_epoch, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, text_length,
+    def forward(self, total_epoch, epoch, global_img_feat, global_text_feat, text_length,
                 labels):
         loss = 0
         result_dict = {}
@@ -583,8 +584,11 @@ class Loss(nn.Module):
             result_dict['image_precision'] = image_precision
             result_dict['text_precision'] = text_precision
 
-        weiTexts = self.compute_weiTexts(local_img_query, local_text_key, local_text_value, text_length, self.args)
-        combineTexts = self.compute_combineTexts(weiTexts)
+        if self.COMBINE or self.PART_I2T or self.PART_CBT2I or self.CONT:
+            weiTexts = self.compute_weiTexts(local_img_query, local_text_key, local_text_value, text_length, self.args)
+            if self.COMBINE or self.PART_I2T or self.PART_CBT2I:
+                combineTexts = self.compute_combineTexts(weiTexts)
+
         if self.COMBINE:
             # image based attended weighted vectors 16 * 32 * 6 * 768
             combine_loss, cb_pos_avg_sim, cb_neg_avg_sim = self.compute_combine_loss(combineTexts, local_img_value, labels, self.args.lambda_softmax, self.args.epsilon)

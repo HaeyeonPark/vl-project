@@ -73,7 +73,7 @@ def test(data_loader, network, args, unique_image):
             p2 = [i for i in range(args.part2)]
             p3 = [i for i in range(args.part3)]
 
-            global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='train')
+            global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='test')
 
             global_img_feat_bank[index_i: index_i + interval_i] = global_img_feat
             global_text_feat_bank[index_t: index_t + interval_t] = global_text_feat

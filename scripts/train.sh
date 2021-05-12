@@ -6,26 +6,22 @@ IMAGE_DIR=/workspace/data
 BASE_ROOT=/workspace/code
 ANNO_DIR=$BASE_ROOT/data/processed_data
 
-CKPT_DIR=$BASE_ROOT/model_data/exp13
-LOG_DIR=$BASE_ROOT/logs/exp13
+CKPT_DIR=$BASE_ROOT/model_data/exp60
+LOG_DIR=$BASE_ROOT/logs/exp60
 PRETRAINED_PATH=$BASE_ROOT/pretrained/resnet50-19c8e357.pth
 FOCAL_TYPE=none
 
-lr=0.00025
-num_epochs=70
+lr=0.00012
+num_epochs=60
 batch_size=32
 lr_decay_ratio=0.9
-epochs_decay=30_40_50
+epochs_decay=20_30_40
 
 num_classes=11003
 
 python $BASE_ROOT/train.py \
     --CMPC \
     --CMPM \
-    --COMBINE \
-    --PART_I2T \
-    --PART_CBT2I \
-    --CONT \
     --pretrained \
     --model_path $PRETRAINED_PATH \
     --log_dir $LOG_DIR/lr-$lr-decay-$lr_decay_ratio-batch-$batch_size \
@@ -47,6 +43,10 @@ python $BASE_ROOT/train.py \
     --part3 3 \
     ##--reranking
     ##--randsampling \
+    ##--PART_CBT2I \
+    ##--CONT \
+    ##--COMBINE \
+    ##--PART_I2T \
 
 
 

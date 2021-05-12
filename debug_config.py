@@ -21,15 +21,15 @@ def parse_args():
 
     # Model setting
     parser.add_argument('--resume', action='store_true', default=False, help='whether or not to restore the pretrained whole model')
-    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--num_epochs', type=int, default=60)
     parser.add_argument('--ckpt_steps', type=int, default=5000, help='#steps to save checkpoint')
     parser.add_argument('--feature_size', type=int, default=768) # 768
     parser.add_argument('--CMPM', action='store_true',default=True)
     parser.add_argument('--CMPC', action='store_true', default=True)
     parser.add_argument('--CONT', action='store_true',default=False)
-    parser.add_argument('--COMBINE', action='store_true',default=False)
-    parser.add_argument('--PART_I2T', action='store_true',default=False)
+    parser.add_argument('--COMBINE', action='store_true',default=True)
+    parser.add_argument('--PART_I2T', action='store_true',default=True)
     parser.add_argument('--PART_CBT2I', action='store_true',default=False)
     parser.add_argument('--focal_type', type=str, default='none')
     parser.add_argument('--cnn_dropout_keep', type=float, default=0.999)

@@ -121,7 +121,11 @@ class Model(nn.Module):
 
         # local_img_*: concatenate b1 + b2 + b3 feature 
         # local_text_*: concatenate sentence cls + subsentence cls + word feature
-        return global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value
+        if stage=='train':
+            return global_img_feat, global_text_feat#, local_img_query, local_img_value, local_text_key, local_text_value
+        elif stage=='test':
+            return global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value
+        
 
 
     def build_joint_embeddings(self, images_features, text_features):
