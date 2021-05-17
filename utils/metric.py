@@ -206,7 +206,8 @@ class Loss(nn.Module):
         self.PART_CBT2I = args.PART_CBT2I
         self.epsilon = args.epsilon
         self.num_classes = args.num_classes
-        self.cb_layer = nn.Linear(args.feature_size*2, args.feature_size)
+        #self.cb_layer = nn.Linear(args.feature_size*2, args.feature_size)
+        self.cb_layer = nn.Linear(1, 1)
         self.W = Parameter(torch.randn(args.feature_size, args.num_classes))
         if args.resume:
             checkpoint = torch.load(args.model_path)
@@ -462,9 +463,10 @@ class Loss(nn.Module):
         concat = []
         n = wei_text.size(0)
         for i in range(n):
-            concat.append(torch.cat((wei_text[i,i,:,:], wei_text[i,i+n,:,:]), dim=1))
+            #concat.append(torch.cat((wei_text[i,i,:,:], wei_text[i,i+n,:,:]), dim=1))
+            concat.append((wei_text[i,i,:,:]+wei_text[i,i+n,:,:])/2)
         combineTexts = torch.stack(concat, dim=0)
-        combineTexts = self.cb_layer(combineTexts)
+        #combineTexts = self.cb_layer(combineTexts)
         #combineTexts = l2norm(combineTexts, dim=2)
         return combineTexts
 

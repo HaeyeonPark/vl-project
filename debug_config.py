@@ -17,11 +17,11 @@ def parse_args():
     parser.add_argument('--model_path', type=str, default = '/workspace/code/pretrained/resnet50-19c8e357.pth', help='directory to pretrained model, whole model or just visual part')
 
     #data
-    parser.add_argument('--rand_sample', action='store_true', default=True, help='whether or not to randomly sample caption data')
+    parser.add_argument('--rand_sample', action='store_true', default=False, help='whether or not to randomly sample caption data')
 
     # Model setting
     parser.add_argument('--resume', action='store_true', default=False, help='whether or not to restore the pretrained whole model')
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_epochs', type=int, default=60)
     parser.add_argument('--ckpt_steps', type=int, default=5000, help='#steps to save checkpoint')
     parser.add_argument('--feature_size', type=int, default=768) # 768
@@ -46,7 +46,7 @@ def parse_args():
     
     # Optimization setting
     parser.add_argument('--optimizer', type=str, default='adam', help='one of "sgd", "adam", "rmsprop", "adadelta", or "adagrad"')
-    parser.add_argument('--lr', type=float, default=0.0011)
+    parser.add_argument('--lr', type=float, default=0.0005)
     parser.add_argument('--wd', type=float, default=0.00004)
     parser.add_argument('--adam_alpha', type=float, default=0.9)
     parser.add_argument('--adam_beta', type=float, default=0.999)
