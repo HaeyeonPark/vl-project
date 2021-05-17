@@ -1,17 +1,17 @@
 #!/bin/bash
-GPUS=0,1,2,3
+GPUS=0,1
 export CUDA_VISIBLE_DEVICES=$GPUS
 
 IMAGE_DIR=/workspace/data
 BASE_ROOT=/workspace/code
 ANNO_DIR=$BASE_ROOT/data/processed_data
 
-CKPT_DIR=$BASE_ROOT/model_data/exp60
-LOG_DIR=$BASE_ROOT/logs/exp60
+CKPT_DIR=$BASE_ROOT/model_data/tmp
+LOG_DIR=$BASE_ROOT/logs/tmp
 PRETRAINED_PATH=$BASE_ROOT/pretrained/resnet50-19c8e357.pth
 FOCAL_TYPE=none
 
-lr=0.00012
+lr=0.0005
 num_epochs=60
 batch_size=32
 lr_decay_ratio=0.9
@@ -22,6 +22,7 @@ num_classes=11003
 python $BASE_ROOT/train.py \
     --CMPC \
     --CMPM \
+    --COMBINE \
     --pretrained \
     --model_path $PRETRAINED_PATH \
     --log_dir $LOG_DIR/lr-$lr-decay-$lr_decay_ratio-batch-$batch_size \
@@ -45,7 +46,6 @@ python $BASE_ROOT/train.py \
     ##--randsampling \
     ##--PART_CBT2I \
     ##--CONT \
-    ##--COMBINE \
     ##--PART_I2T \
 
 

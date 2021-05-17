@@ -564,8 +564,7 @@ class Loss(nn.Module):
         part_result['part_loss'] = part_loss 
         return part_result
 
-    ##def forward(self, total_epoch, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, text_length,
-    def forward(self, total_epoch, epoch, global_img_feat, global_text_feat, text_length,
+    def forward(self, total_epoch, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, text_length,
                 labels):
         loss = 0
         result_dict = {}
@@ -620,7 +619,6 @@ class Loss(nn.Module):
             result_dict['local_pos_avg_sim'] = local_pos_avg_sim
             result_dict['local_neg_avg_sim'] = local_neg_avg_sim
 
-        #return cmpm_loss.item(), cmpc_loss.item(), combine_loss.item(), part_loss.item(), loss, image_precision, text_precision, pos_avg_sim, neg_avg_sim, each_part_i2t, each_part_t2i
         return loss, result_dict
 
 

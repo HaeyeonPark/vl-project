@@ -89,16 +89,11 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         #random.shuffle(p3)
 
         # network
-        ###global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='train')
-        global_img_feat, global_text_feat = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='train')
+        global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value = network(images, tokens, segments, input_masks, sep_tokens, sep_segments, sep_input_masks, n_sep, p2, p3,  stage='train')
 
         # loss
-        #cmpm_loss, cmpc_loss, cont_loss, loss, image_precision, text_precision, pos_avg_sim, neg_arg_sim, local_pos_avg_sim, local_neg_avg_sim = compute_loss(
-        #    global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
-        ###loss, result_dict = compute_loss(
-        ###    args.num_epochs, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
         loss, result_dict = compute_loss(
-            args.num_epochs, epoch, global_img_feat, global_text_feat, caption_length, labels)
+            args.num_epochs, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
 
         if step % 20 == 0:
             print('epoch:{}, step:{}'.format(epoch, step), end=' ') 
