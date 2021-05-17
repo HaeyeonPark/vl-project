@@ -206,20 +206,15 @@ class Loss(nn.Module):
         self.PART_CBT2I = args.PART_CBT2I
         self.epsilon = args.epsilon
         self.num_classes = args.num_classes
-        self.cb_layer = nn.Linear(args.feature_size*2, args.feature_size)
+        self.cb_layer = nn.Linear(args.feature_size*2, 1000)
+        self.cb_layer_2 = nn.Linear(1000, args.feature_size)
         self.W = Parameter(torch.randn(args.feature_size, args.num_classes))
-        if args.resume:
-            checkpoint = torch.load(args.model_path)
-            self.W = Parameter(checkpoint['W'])
-            self.cb_layer.weight = Parameter(checkpoint['cb_layer.weight'])
-            self.cb_layer.bias = Parameter(checkpoint['cb_layer.bias'])
-            print('=========> Loading in parameter W, combine layer from pretrained models')
-        else:
-            self.init_weight()
+        self.init_weight()
 
     def init_weight(self):
         nn.init.xavier_uniform_(self.W.data, gain=1)
         nn.init.xavier_uniform_(self.cb_layer.weight, gain=1)
+        nn.init.xavier_uniform_(self.cb_layer_2.weight, gain=1)
 
     @staticmethod
     def compute_i2t_sim(local_img_query, local_img_value, local_text_key, local_text_value, text_length, args):
@@ -465,6 +460,7 @@ class Loss(nn.Module):
             concat.append(torch.cat((wei_text[i,i,:,:], wei_text[i,i+n,:,:]), dim=1))
         combineTexts = torch.stack(concat, dim=0)
         combineTexts = self.cb_layer(combineTexts)
+        combineTexts = self.cb_layer_2(combineTexts)
         #combineTexts = l2norm(combineTexts, dim=2)
         return combineTexts
 

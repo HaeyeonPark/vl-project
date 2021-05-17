@@ -9,8 +9,8 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 from utils.metric import AverageMeter, Loss, constraints_loss
 from test import test
-from config import data_config, network_config, lr_scheduler, get_image_unique
-from train_config import config
+from config import data_config, network_config, lr_scheduler, get_image_unique, loss_config
+from debug_config import config
 from tqdm import tqdm
 import sys
 from solver import WarmupMultiStepLR, RandomErasing
@@ -162,8 +162,9 @@ def main(args):
     unique_image = get_image_unique(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)  
     
     # loss
-    compute_loss = Loss(args)
-    nn.DataParallel(compute_loss).cuda()
+    compute_loss = loss_config(args)
+    #compute_loss = Loss(args)
+    #compute_loss = nn.DataParallel(compute_loss).cuda() ha...mcnd..
 
     # network
     network, optimizer = network_config(args, 'train', compute_loss.parameters(), args.resume, args.model_path)
@@ -194,7 +195,8 @@ def main(args):
         if epoch >= 0:
             ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, test_time = test(test_loader, network, args, unique_image)
         
-            state = {'network': network.state_dict(), 'optimizer': optimizer.state_dict(), 'W': compute_loss.W, 'epoch': args.start_epoch + epoch, 'cb_layer.weight': compute_loss.cb_layer.weight, 'cb_layer.bias': compute_loss.cb_layer.bias}
+            #state = {'network': network.state_dict(), 'optimizer': optimizer.state_dict(), 'W': compute_loss.W, 'epoch': args.start_epoch + epoch, 'cb_layer.weight': compute_loss.cb_layer.weight, 'cb_layer.bias': compute_loss.cb_layer.bias}
+            state = {'network': network.state_dict(), 'optimizer': optimizer.state_dict(), 'loss': compute_loss.state_dict(), 'epoch': args.start_epoch + epoch }
             
             if ac_top1_t2i > ac_t2i_top1_best:
                 best_epoch = epoch

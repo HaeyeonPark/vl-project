@@ -11,9 +11,19 @@ import logging
 from datasets.pedes import CuhkPedes
 from models.model import Model
 from utils import directory
+from utils.metric import Loss
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+def loss_config(args):
+    compute_loss = Loss(args).cuda()
+    #nn.DataParallel(compute_loss).cuda()
+    if args.resume:
+        checkpoint = torch.load(args.model_path)
+        compute_loss.load_state_dict(checkpoint['loss'])
+        print('==> Loading loss checkpoint')
+    return compute_loss
 
 
 def data_config(image_dir, anno_dir, batch_size, split, max_length, transform, vocab_path='', min_word_count=0, cap_transform=None, vis=False, rand_sample=False):
