@@ -209,7 +209,7 @@ class Loss(nn.Module):
         self.cb_layer = nn.Linear(args.feature_size*2, args.feature_size)
         self.W = Parameter(torch.randn(args.feature_size, args.num_classes))
         if args.resume:
-            checkpoint = torch.load(args.best_model_path)
+            checkpoint = torch.load(args.model_path)
             self.W = Parameter(checkpoint['W'])
             self.cb_layer.weight = Parameter(checkpoint['cb_layer.weight'])
             self.cb_layer.bias = Parameter(checkpoint['cb_layer.bias'])
@@ -591,7 +591,7 @@ class Loss(nn.Module):
         if self.COMBINE:
             # image based attended weighted vectors 16 * 32 * 6 * 768
             combine_loss, cb_pos_avg_sim, cb_neg_avg_sim = self.compute_combine_loss(combineTexts, local_img_value, labels, self.args.lambda_softmax, self.args.epsilon)
-            combine_loss = combine_loss * self.args.lambda_cont
+            combine_loss = combine_loss * self.args.lambda_combine
             loss += combine_loss
             result_dict['combine_loss'] = combine_loss.item()
             result_dict['cb_pos_avg_sim'] = cb_pos_avg_sim

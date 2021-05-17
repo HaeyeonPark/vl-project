@@ -105,13 +105,6 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
                 print('each_part_i2t', result_dict['each_part_i2t_loss'])
             if args.PART_CBT2I:
                 print('each_part_t2i', result_dict['each_part_t2i_loss'])
-            #print('\neach_part_t2i',each_part_t2i)
-            #print('each_part_i2t',each_part_i2t)
-
-            #print('epoch:{}, step:{}, cmpm_loss:{:.3f}, cmpc_loss:{:.3f}, combine_loss:{:.3f}, part_loss:{:.3f}, pos_sim_avg:{:.3f}, neg_sim_avg:{:.3f}'.
-            #      format(epoch, step, cmpm_loss, cmpc_loss, combine_loss, part_loss, pos_avg_sim, neg_avg_sim))
-            #print('part_i2t', part_i2t)
-            #print('part_t2i', part_t2i)
 
         # constrain embedding with the same id at the end of one epoch
         if (args.constraints_images or args.constraints_text) and step == len(train_loader) - 1:
@@ -164,7 +157,7 @@ def main(args):
     # data
     train_loader = data_config(args.image_dir, args.anno_dir, args.batch_size, 'train', 100, train_transform, cap_transform=cap_transform, rand_sample=args.rand_sample)
 
-    # why test dataloader 64 no error??
+    # why test dataloader 64 
     test_loader = data_config(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)
     unique_image = get_image_unique(args.image_dir, args.anno_dir, 64, 'test', 100, test_transform)  
     
@@ -174,6 +167,7 @@ def main(args):
 
     # network
     network, optimizer = network_config(args, 'train', compute_loss.parameters(), args.resume, args.model_path)
+
 
     # lr_scheduler
     scheduler = WarmupMultiStepLR(optimizer, (20, 25, 35), 0.1, 0.01, 10, 'linear')
