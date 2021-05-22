@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from utils.metric import AverageMeter, Loss, constraints_loss
 from test import test
 from config import data_config, network_config, lr_scheduler, get_image_unique, loss_config
-from train_config import config
+from debug_config import config
 from tqdm import tqdm
 import sys
 from solver import WarmupMultiStepLR, RandomErasing
@@ -171,7 +171,8 @@ def main(args):
 
 
     # lr_scheduler
-    scheduler = WarmupMultiStepLR(optimizer, (20, 25, 35), 0.1, 0.01, 10, 'linear')
+    milestone_list = tuple(map(int, args.epochs_decay.split('_')))
+    scheduler = WarmupMultiStepLR(optimizer, milestones=milestone_list, gamma=0.1, warmup_factor=0.01, warmup_iters=10, warmup_method='linear')
 
     
     ac_t2i_top1_best = 0.0

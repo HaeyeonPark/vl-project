@@ -379,6 +379,7 @@ class Loss(nn.Module):
 
         image_logits = torch.matmul(image_proj_text, self.W_norm)
         text_logits = torch.matmul(text_proj_image, self.W_norm)
+        
 
         # image_logits = torch.matmul(image_embeddings, self.W_norm)
         # text_logits = torch.matmul(text_embeddings, self.W_norm)

@@ -6,17 +6,17 @@ IMAGE_DIR=/workspace/data
 BASE_ROOT=/workspace/code
 ANNO_DIR=$BASE_ROOT/data/processed_data
 
-CKPT_DIR=$BASE_ROOT/model_data/exp4
-LOG_DIR=$BASE_ROOT/logs/exp4
+CKPT_DIR=$BASE_ROOT/model_data/exp7
+LOG_DIR=$BASE_ROOT/logs/exp7
 PRETRAINED_PATH=$BASE_ROOT/pretrained/resnet50-19c8e357.pth
 ##BEST_MODEL_PATH=$BASE_ROOT/model_data/exp1/lr-0.0005-decay-0.9-batch-32/latest_model.pth.tar
 FOCAL_TYPE=none
 
 lr=0.0005
-num_epochs=60
+num_epochs=70
 batch_size=32
-lr_decay_ratio=0.9
-epochs_decay=20_30_40
+lr_decay_ratio=0.7
+epochs_decay=30_40_50
 
 num_classes=11003
 
