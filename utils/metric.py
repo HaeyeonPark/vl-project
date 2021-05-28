@@ -200,6 +200,7 @@ class Loss(nn.Module):
         self.args = args
         self.CMPM = args.CMPM
         self.CMPC = args.CMPC
+        self.Triplet = args.Triplet
         self.COMBINE = args.COMBINE
         self.CONT = args.CONT
         self.PART_I2T = args.PART_I2T
@@ -450,6 +451,49 @@ class Loss(nn.Module):
 
         return cmpm_loss, pos_avg_sim, neg_avg_sim
 
+    def compute_triplet_global_loss(self,image_embeddings, text_embeddings, labels):
+        """
+        triplet loss for global representations
+        """
+        # similarity matrix
+        # normalize
+        image_norm = image_embeddings / torch.norm(image_embeddings, p=2, dim=1, keepdim=True)
+        text_norm = text_embeddings / torch.norm(text_embeddings, p=2, dim=1, keepdim=True)
+        image_text_sim = torch.matmul(image_norm, text_norm.t()) # 16 * 32
+
+        # positive_mask
+        n_img = labels.size(0)
+        n_txt = 2*n_img
+        text_labels = torch.cat((labels, labels), dim=0)
+        pos_mask = labels.view(n_img,1) - text_labels.view(1,n_txt) 
+        pos_mask = (pos_mask == 0)
+
+        # negative mask
+        neg_mask = ~pos_mask
+
+        # triplet mask
+        # (i,j,k) => (v, t+, t-)
+        j_not_equal_k = ~torch.eye(n_txt, dtype=torch.bool).cuda().view(1, n_txt, n_txt)
+        i_equal_label_j = pos_mask.view(n_img, n_txt, 1)
+        triplet_mask = j_not_equal_k & i_equal_label_j
+
+        triplet_dist = - image_text_sim.view(n_img, n_txt, 1) + image_text_sim.view(n_img, 1, n_txt)
+        triplet_dist = triplet_dist[triplet_mask]
+
+        mu_pos = torch.mean(image_text_sim[pos_mask])
+        mu_neg = torch.mean(image_text_sim[neg_mask])
+        mu = mu_neg - mu_pos
+        hardest_triplets = triplet_dist > max(mu,0)
+        triplet_loss = triplet_dist[hardest_triplets]
+        triplet_loss = nn.functional.relu(triplet_loss)
+
+        loss = triplet_loss.mean()
+
+        # (i,j,k) => (t, v+, v-)
+        return loss 
+        
+
+
     def compute_combineTexts(self, wei_text):
         # compute part level combined texts
         # 1> use one fc layer to combine two txt vectors
@@ -576,6 +620,12 @@ class Loss(nn.Module):
             result_dict['cmpc_loss'] = cmpc_loss.item()
             result_dict['image_precision'] = image_precision
             result_dict['text_precision'] = text_precision
+        
+        if self.Triplet:
+            triplet_loss = self.compute_triplet_global_loss(global_img_feat, global_text_feat, labels)
+            loss += triplet_loss
+            result_dict['triplet_loss'] = triplet_loss.item()
+
 
         if self.COMBINE or self.PART_I2T or self.PART_CBT2I or self.CONT:
             weiTexts = self.compute_weiTexts(local_img_query, local_text_key, local_text_value, text_length, self.args)

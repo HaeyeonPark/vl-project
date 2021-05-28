@@ -27,6 +27,7 @@ def parse_args():
     parser.add_argument('--feature_size', type=int, default=768) # 768
     parser.add_argument('--CMPM', action='store_true',default=True)
     parser.add_argument('--CMPC', action='store_true', default=True)
+    parser.add_argument('--Triplet', action='store_true', default=True)
     parser.add_argument('--CONT', action='store_true',default=False)
     parser.add_argument('--COMBINE', action='store_true',default=True)
     parser.add_argument('--PART_I2T', action='store_true',default=True)
@@ -39,7 +40,7 @@ def parse_args():
     parser.add_argument('--pretrained', action='store_true', default=True, help='whether or not to restore the pretrained visual model')
     parser.add_argument('--part2', type=int, default=2) 
     parser.add_argument('--part3', type=int, default=3)
-    parser.add_argument('--lambda_softmax', type=float, default=20.0, help='scale constant')
+    parser.add_argument('--lambda_softmax', type=float, default=1.0, help='scale constant')
     parser.add_argument('--lambda_cont', type=float, default=0.1, help='hyper-parameter of contrastive loss')
     parser.add_argument('--lambda_combine', type=float, default=0.1, help='hyper-parameter of combine loss')
     parser.add_argument('--reranking', action='store_true', default=False, help='whether reranking during testing')

@@ -27,6 +27,7 @@ def parse_args():
     parser.add_argument('--feature_size', type=int, default=768) # 768
     parser.add_argument('--CMPM', action='store_true',default=False)
     parser.add_argument('--CMPC', action='store_true', default=False)
+    parser.add_argument('--Triplet', action='store_true', default=False) #######
     parser.add_argument('--CONT', action='store_true',default=False)
     parser.add_argument('--COMBINE', action='store_true',default=False)
     parser.add_argument('--PART_I2T', action='store_true',default=False)
