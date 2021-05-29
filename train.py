@@ -171,7 +171,8 @@ def main(args):
 
 
     # lr_scheduler
-    scheduler = WarmupMultiStepLR(optimizer, (20, 25, 35), 0.1, 0.01, 10, 'linear')
+    milestone_list = tuple(map(int, args.epochs_decay.split('_')))
+    scheduler = WarmupMultiStepLR(optimizer, milestone_list=milestone_list, gamma=0.1, warmup_factor=0.01, warmup_iters=10, warmup_method='linear')
 
     
     ac_t2i_top1_best = 0.0
