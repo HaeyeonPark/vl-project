@@ -430,7 +430,10 @@ class Loss(nn.Module):
         #labels_mask_norm = labels_mask.float() / labels_mask.float().norm(dim=1)
         labels_mask_t = labels_mask.t()
         labels_mask_norm_i2t = (labels_mask_t.float() / labels_mask_t.float().norm(dim=0,p=1)).t()
+        labels_mask_norm_i2t = labels_mask_norm_i2t * 0.9 + 0.1/(batch_size * 2) # label smoothing alpha = 0.1
+
         labels_mask_norm_t2i = (labels_mask.float() / labels_mask.float().norm(dim=0,p=1)).t()
+        labels_mask_norm_t2i = labels_mask_norm_t2i * 0.9 + 0.1/(batch_size)
 
         i2t_pred = F.softmax(image_proj_text, dim=1)
         # i2t_loss = i2t_pred * torch.log((i2t_pred + self.epsilon)/ (labels_mask_norm + self.epsilon))
@@ -518,11 +521,18 @@ class Loss(nn.Module):
             combineTexts_expand = combineTexts_expand.transpose(0,1)
 
             i2t_sim = compute_similarity(local_img_expand, weiTexts, dim=3)
-            i2t_pred = F.softmax(i2t_sim * self.args.lambda_softmax, dim=1)
+            ##i2t_pred = F.softmax(i2t_sim * self.args.lambda_softmax, dim=1)
+            i2t_pred = F.softmax(i2t_sim, dim=1)
 
             i2cbt_sim = compute_similarity(combineTexts_expand, weiTexts, dim=3)
-            i2cbt_pred = F.softmax(i2cbt_sim * self.args.lambda_softmax, dim=1)
-            part_i2t_loss = i2t_pred * (torch.log(i2t_pred) - torch.log(i2cbt_pred + self.epsilon))
+            ##i2cbt_pred = F.softmax(i2cbt_sim * self.args.lambda_softmax, dim=1)
+            i2cbt_pred = F.softmax(i2cbt_sim, dim=1)
+            # threshold : 1 if bigger than mean 
+            i2cbt_mask = i2cbt_pred > i2cbt_pred.mean(dim=1).unsqueeze(1)
+            i2cbt_pred_masked = i2cbt_pred * i2cbt_mask
+            i2cbt_pred_masked = i2cbt_pred_masked/ i2cbt_pred_masked.norm(dim=1,p=1).unsqueeze(1)
+            
+            part_i2t_loss = i2t_pred * (torch.log(i2t_pred) - torch.log(i2cbt_pred_masked + self.epsilon))
             part_i2t_loss = torch.sum(part_i2t_loss, dim=1)
 
             each_part_i2t_loss = torch.mean(part_i2t_loss, dim=0) # each part
@@ -543,8 +553,12 @@ class Loss(nn.Module):
 
             cbt2cbt_sim = compute_similarity(combineTexts_expand_t2i, combineTexts_expand_set, dim=3)
             cbt2cbt_pred = F.softmax(cbt2cbt_sim * self.args.lambda_softmax, dim=1)
+            # threshold: if bigger than mean * 0.3
+            cbt2cbt_mask = cbt2cbt_pred > ((cbt2cbt_pred.mean(dim=1))*0.3).unsqueeze(1)
+            cbt2cbt_pred_masked = cbt2cbt_pred * cbt2cbt_mask
+            cbt2cbt_pred_masked = cbt2cbt_pred_masked/cbt2cbt_pred_masked.norm(dim=1, p=1).unsqueeze(1)
 
-            part_t2i_loss = cbt2i_pred * (torch.log(cbt2i_pred) - torch.log(cbt2cbt_pred + self.epsilon))
+            part_t2i_loss = cbt2i_pred * (torch.log(cbt2i_pred) - torch.log(cbt2cbt_pred_masked + self.epsilon))
             part_t2i_loss = torch.sum(part_t2i_loss, dim=1)
 
             each_part_t2i_loss = torch.mean(part_t2i_loss, dim=0) # each part
@@ -584,13 +598,14 @@ class Loss(nn.Module):
         if self.COMBINE:
             # image based attended weighted vectors 16 * 32 * 6 * 768
             combine_loss, cb_pos_avg_sim, cb_neg_avg_sim = self.compute_combine_loss(combineTexts, local_img_value, labels, self.args.lambda_softmax, self.args.epsilon)
-            combine_loss = combine_loss * self.args.lambda_combine
+            beta = epoch / total_epoch
+            combine_loss = combine_loss * self.args.lambda_combine * min(1, exp(beta) + beta -1)
             loss += combine_loss
             result_dict['combine_loss'] = combine_loss.item()
             result_dict['cb_pos_avg_sim'] = cb_pos_avg_sim
             result_dict['cb_neg_avg_sim'] = cb_neg_avg_sim
 
-        if self.PART_I2T or self.PART_CBT2I:
+        if (self.PART_I2T or self.PART_CBT2I) and (epoch>15):
             # i2t + t2i
             part_result = self.compute_part_loss(weiTexts, combineTexts, local_img_value, self.PART_I2T, self.PART_CBT2I)
 
@@ -598,8 +613,8 @@ class Loss(nn.Module):
             #part_loss = part_loss * self.args.lambda_cont * min(1, exp(beta)+ beta -1)
             #result_dict['part_loss'] = part_loss.item()
 
-            beta = epoch / total_epoch
-            part_result['part_loss'] *= self.args.lambda_combine * min(1, exp(beta) + beta -1)
+            beta = (epoch-15) / total_epoch
+            part_result['part_loss'] *= self.args.lambda_part * min(1, exp(beta) + beta -1)
             loss += part_result['part_loss']
             part_result['part_loss'] = part_result['part_loss'].item()
             result_dict.update(part_result)

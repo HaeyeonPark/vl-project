@@ -95,16 +95,17 @@ def train(epoch, train_loader, network, optimizer, compute_loss, args, co_locati
         loss, result_dict = compute_loss(
             args.num_epochs, epoch, global_img_feat, global_text_feat, local_img_query, local_img_value, local_text_key, local_text_value, caption_length, labels)
 
-        if step % 20 == 0:
+        if step % 50 == 0:
             print('epoch:{}, step:{}'.format(epoch, step), end=' ') 
             for k in result_dict:
                 if k not in ['each_part_i2t_loss', 'each_part_t2i_loss']:
                     print(',',k, ':{:.3f}'.format(result_dict[k]),sep='', end=' ')
             print()
-            if args.PART_I2T:
-                print('each_part_i2t', result_dict['each_part_i2t_loss'])
-            if args.PART_CBT2I:
-                print('each_part_t2i', result_dict['each_part_t2i_loss'])
+            if epoch>15:
+                if args.PART_I2T:
+                    print('each_part_i2t', result_dict['each_part_i2t_loss'])
+                if args.PART_CBT2I:
+                    print('each_part_t2i', result_dict['each_part_t2i_loss'])
 
         # constrain embedding with the same id at the end of one epoch
         if (args.constraints_images or args.constraints_text) and step == len(train_loader) - 1:

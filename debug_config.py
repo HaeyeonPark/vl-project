@@ -30,7 +30,7 @@ def parse_args():
     parser.add_argument('--CONT', action='store_true',default=False)
     parser.add_argument('--COMBINE', action='store_true',default=True)
     parser.add_argument('--PART_I2T', action='store_true',default=True)
-    parser.add_argument('--PART_CBT2I', action='store_true',default=False)
+    parser.add_argument('--PART_CBT2I', action='store_true',default=True)
     parser.add_argument('--focal_type', type=str, default='none')
     parser.add_argument('--cnn_dropout_keep', type=float, default=0.999)
     parser.add_argument('--constraints_text', action='store_true')

@@ -42,6 +42,7 @@ def parse_args():
     parser.add_argument('--lambda_softmax', type=float, default=20.0, help='scale constant')
     parser.add_argument('--lambda_cont', type=float, default=0.1, help='hyper-parameter of contrastive loss')
     parser.add_argument('--lambda_combine', type=float, default=0.1, help='hyper-parameter of combine loss')
+    parser.add_argument('--lambda_part', type=float, default=0.1, help='hyper-parameter of combine loss')
     parser.add_argument('--reranking', action='store_true', default=False, help='whether reranking during testing')
     
     # Optimization setting
