@@ -110,44 +110,82 @@ def visualize(data_loader, network, args, unique_image, image_path_list):
         t2i_index, correct = compute_topk(global_img_feat_bank, local_img_query_bank, local_img_value_bank, global_text_feat_bank, local_text_key_bank,
                                                         local_text_value_bank, length_bank, labels_bank_i, labels_bank_t, args, [1, 5, 10], True, return_index=True)
 
-        n = t2i_index.size(0)
-        for i in range(0, n, 20):
-            text_query = caption_list[i]
-            fig = plt.figure()
-            for k in range(10): 
-                img_path = image_path_list[t2i_index[i][k]]
-                ifcorrect = correct[i][k].item()
+        if args.only_false_case:
+            n = t2i_index.size(0)
+            for i in range(0, n):
+                text_query = caption_list[i]
+                fig = plt.figure()
+                if correct[i][0]==False:
+                    for k in range(10): 
+                        img_path = image_path_list[t2i_index[i][k]]
+                        ifcorrect = correct[i][k].item()
 
-                fig.add_subplot(1,10,k+1)
+                        fig.add_subplot(1,10,k+1)
 
-                middle_path = "CUHK-PEDES/imgs"
-                if middle_path not in img_path:
-                    img_path = os.path.join(args.image_dir, middle_path, img_path)
-                else:
-                    img_path = os.path.join(args.image_root, img_path)
-                im = Image.open(img_path)
-                im=im.resize((150,400))
-                im = np.asarray(im)
-                #im = plt.imread(img_path)
-                plt.imshow(im)
-                plt.axis('off')
-                plt.title(str(ifcorrect))
-                #ax = plt.subplot(1,10,i+1)
-                #ax.axis('off')
-                #ax.set_title(str(ifcorrect))
+                        middle_path = "CUHK-PEDES/imgs"
+                        if middle_path not in img_path:
+                            img_path = os.path.join(args.image_dir, middle_path, img_path)
+                        else:
+                            img_path = os.path.join(args.image_root, img_path)
+                        im = Image.open(img_path)
+                        im=im.resize((150,400))
+                        im = np.asarray(im)
+                        #im = plt.imread(img_path)
+                        plt.imshow(im)
+                        plt.axis('off')
+                        plt.title(str(ifcorrect))
+                        #ax = plt.subplot(1,10,i+1)
+                        #ax.axis('off')
+                        #ax.set_title(str(ifcorrect))
 
-                
-            fig.suptitle("\n".join(wrap(text_query, 60)))
-            fig.tight_layout()
-            demo_path = os.path.join(args.model_path, 'demo')
-            if not os.path.exists(demo_path):
-                os.makedirs(demo_path)
-            plt.savefig(os.path.join(demo_path,str(i)+'.png'))
-            plt.close()
+                        
+                    fig.suptitle("\n".join(wrap(text_query, 60)))
+                    fig.tight_layout()
+                    demo_path = os.path.join(args.model_path, 'demo_falsecase')
+                    if not os.path.exists(demo_path):
+                        os.makedirs(demo_path)
+                    plt.savefig(os.path.join(demo_path,str(i)+'.png'))
+                    plt.close()
+
+        else:
+            n = t2i_index.size(0)
+            for i in range(0, n, 20):
+                text_query = caption_list[i]
+                fig = plt.figure()
+                for k in range(10): 
+                    img_path = image_path_list[t2i_index[i][k]]
+                    ifcorrect = correct[i][k].item()
+
+                    fig.add_subplot(1,10,k+1)
+
+                    middle_path = "CUHK-PEDES/imgs"
+                    if middle_path not in img_path:
+                        img_path = os.path.join(args.image_dir, middle_path, img_path)
+                    else:
+                        img_path = os.path.join(args.image_root, img_path)
+                    im = Image.open(img_path)
+                    im=im.resize((150,400))
+                    im = np.asarray(im)
+                    #im = plt.imread(img_path)
+                    plt.imshow(im)
+                    plt.axis('off')
+                    plt.title(str(ifcorrect))
+                    #ax = plt.subplot(1,10,i+1)
+                    #ax.axis('off')
+                    #ax.set_title(str(ifcorrect))
+
+                    
+                fig.suptitle("\n".join(wrap(text_query, 60)))
+                fig.tight_layout()
+                demo_path = os.path.join(args.model_path, 'demo')
+                if not os.path.exists(demo_path):
+                    os.makedirs(demo_path)
+                plt.savefig(os.path.join(demo_path,str(i)+'.png'))
+                plt.close()
 
 
     
-        return #ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, batch_time.avg
+    return #ac_top1_i2t, ac_top5_i2t, ac_top10_i2t, ac_top1_t2i, ac_top5_t2i , ac_top10_t2i, batch_time.avg
 
 
 

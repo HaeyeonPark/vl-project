@@ -9,9 +9,9 @@ def parse_args():
     # Directory
     parser.add_argument('--image_dir', type=str, default='/workspace/data', help='directory to store dataset')
     parser.add_argument('--anno_dir', type=str, default='/workspace/code/data/processed_data',help='directory to store anno file')
-    parser.add_argument('--model_path', type=str, default ='/workspace/code/model_data/bm',help='directory to exp ') ## where's best_model.pth.tar
+    parser.add_argument('--model_path', type=str, default ='/workspace/code/model_data/nafs',help='directory to exp ') ## where's best_model.pth.tar
     # demo folder is under 'model_path'
-    parser.add_argument('--best_model_path', type=str, default ='/workspace/code/model_data/bm/best_model.pth.tar',help='directory to exp ')##
+    parser.add_argument('--best_model_path', type=str, default ='/workspace/code/model_data/exp9/best_model.pth.tar',help='directory to exp ')##
 
     parser.add_argument('--feature_size', type=int, default=768)##
     parser.add_argument('--cnn_dropout_keep', type=float, default=0.999)
@@ -34,6 +34,8 @@ def parse_args():
     parser.add_argument('--num_classes', type=int, default=11003) ##
 
     parser.add_argument('--resume', action='store_true', default=False, help='whether or not to restore the pretrained whole model')
+
+    parser.add_argument('--only_false_case', action='store_true', default=True, help='whether to save only false case')###
 
     args = parser.parse_args()
     return args
