@@ -497,8 +497,10 @@ class Loss(nn.Module):
             sim = sim.mean(dim=1)
             i2t_sim.append(sim)
         i2t_sim = torch.stack(i2t_sim, dim=0) # n * 16(txt) 
-        i2t_pred = F.softmax(i2t_sim * self.args.lambda_softmax, dim=1)
-        combine_loss = i2t_pred * (torch.log(i2t_pred) - torch.log(labels_mask_norm + self.epsilon))
+        i2t_pred = F.softmax(i2t_sim, dim=1)
+        #combine_loss = i2t_pred * (torch.log(i2t_pred) - torch.log(labels_mask_norm + self.epsilon))
+        # in case of combined loss, focus on positive pair
+        combine_loss = labels_mask_norm * (torch.log(labels_mask_norm + self.epsilon) - torch.log(i2t_pred + self.epsilon))
         combine_loss = torch.mean(torch.sum(combine_loss, dim=1))
 
         cb_pos_avg_sim = torch.mean(torch.masked_select(i2t_sim, labels_mask))
